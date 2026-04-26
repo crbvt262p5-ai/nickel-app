@@ -2,7 +2,7 @@
   "name": "LME Nickel Predictor",
   "short_name": "NI Predict",
   "description": "LME 니켈 Class 1 가격 예측 · 백테스트 대시보드",
-  "start_url": "/index.html",
+  "start_url": "https://crbvt262p5-ai.github.io/nickel-app/index.html",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#060810",
