@@ -9,836 +9,102 @@
 <meta name="theme-color" content="#060810">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.svg">
-<link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
 <title>LME Nickel Predictor</title>
 <style>
-  :root {
-    --bg:      #060810;
-    --s1:      #0c0f1a;
-    --s2:      #111520;
-    --border:  #1c2238;
-    --accent:  #00c8ff;
-    --gold:    #f0a020;
-    --green:   #00e676;
-    --red:     #ff3d57;
-    --muted:   #2a3350;
-    --text:    #dde4f4;
-    --sub:     #5a6888;
-    --safe-top: env(safe-area-inset-top, 0px);
-    --safe-bot: env(safe-area-inset-bottom, 0px);
-  }
-  * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
-  html, body { height:100%; overflow:hidden; background:var(--bg); color:var(--text);
-    font-family:'Noto Sans KR', sans-serif; overscroll-behavior:none; }
-
-  /* ── 레이아웃 */
-  #app { display:flex; flex-direction:column; height:100vh; height:100dvh; }
-
-  /* ── 헤더 */
-  #header {
-    padding: calc(var(--safe-top) + 14px) 18px 14px;
-    background: var(--s1);
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
-  }
-  .header-row { display:flex; align-items:center; gap:10px; }
-  .header-icon { font-size:20px; filter:drop-shadow(0 0 6px var(--accent)); }
-  .header-title { font-family:'Space Mono',monospace; font-size:13px; font-weight:700; color:var(--accent); letter-spacing:1px; }
-  .header-sub { font-size:10px; color:var(--sub); margin-top:1px; font-family:'Space Mono',monospace; }
-  .run-btn {
-    margin-left:auto; padding:8px 16px;
-    background:var(--accent); border:none; border-radius:6px;
-    color:var(--bg); font-weight:700; font-size:12px;
-    font-family:'Space Mono',monospace; letter-spacing:1px;
-    cursor:pointer; transition:opacity .15s; -webkit-appearance:none;
-  }
-  .run-btn:active { opacity:.7; }
-  .run-btn.done { background:var(--green); }
-  .run-btn.running { background:var(--muted); color:var(--sub); }
-
-  /* ── 진행 바 */
-  #progress-wrap { height:2px; background:var(--muted); flex-shrink:0; display:none; }
-  #progress-fill { height:2px; background:var(--accent); width:0%; transition:width .4s;
-    box-shadow:0 0 8px var(--accent); }
-
-  /* ── 탭 바 */
-  #tabbar {
-    display:flex; overflow-x:auto; scrollbar-width:none;
-    background:var(--s1); border-bottom:1px solid var(--border);
-    flex-shrink:0;
-  }
-  #tabbar::-webkit-scrollbar { display:none; }
-  .tab-btn {
-    flex-shrink:0; padding:12px 16px;
-    background:none; border:none; border-bottom:2px solid transparent;
-    color:var(--sub); font-size:11px; font-family:'Space Mono',monospace;
-    cursor:pointer; white-space:nowrap; transition:all .15s;
-  }
-  .tab-btn.active { color:var(--accent); border-bottom-color:var(--accent); }
-  .tab-btn:active { opacity:.7; }
-
-  /* ── 콘텐츠 영역 */
-  #content { flex:1; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch; padding:16px; }
-  #content::-webkit-scrollbar { display:none; }
-
-  /* ── 하단 내비 */
-  #navbar {
-    display:flex; background:var(--s1);
-    border-top:1px solid var(--border);
-    padding-bottom:var(--safe-bot);
-    flex-shrink:0;
-  }
-  .nav-btn {
-    flex:1; padding:10px 0 8px; background:none; border:none;
-    color:var(--sub); font-size:9px; font-family:'Space Mono',monospace;
-    cursor:pointer; transition:color .15s; display:flex; flex-direction:column;
-    align-items:center; gap:3px;
-  }
-  .nav-btn.active { color:var(--accent); }
-  .nav-btn .nav-icon { font-size:18px; }
-  .nav-btn:active { opacity:.6; }
-
-  /* ── 카드 */
-  .card { background:var(--s2); border:1px solid var(--border); border-radius:12px;
-    padding:14px 16px; margin-bottom:12px; }
-  .card-title { font-family:'Space Mono',monospace; font-size:9px; letter-spacing:2px;
-    color:var(--accent); margin-bottom:12px; }
-
-  /* ── KPI 그리드 */
-  .kpi-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
-  .kpi-grid-5 { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; margin-bottom:12px; overflow-x:auto; }
-  .kpi { background:var(--s2); border:1px solid var(--border); border-radius:10px; padding:12px 10px; text-align:center; }
-  .kpi.pass { border-color:rgba(0,230,118,.3); background:rgba(0,230,118,.04); }
-  .kpi.fail { border-color:rgba(255,61,87,.3);  background:rgba(255,61,87,.04); }
-  .kpi-val { font-family:'Space Mono',monospace; font-size:20px; font-weight:700; }
-  .kpi-label { font-size:9px; color:var(--sub); margin-top:3px; }
-  .kpi-sub { font-size:10px; color:var(--sub); margin-top:6px; }
-  .badge { font-size:14px; margin-top:4px; }
-
-  /* ── 테이블 */
-  .tbl { width:100%; border-collapse:collapse; font-size:11px; }
-  .tbl th { padding:7px 8px; color:var(--sub); font-weight:400; font-family:'Space Mono',monospace;
-    font-size:9px; border-bottom:1px solid var(--border); text-align:right; }
-  .tbl th:first-child { text-align:left; }
-  .tbl td { padding:8px 8px; border-bottom:1px solid rgba(28,34,56,.6); text-align:right; }
-  .tbl td:first-child { text-align:left; font-family:'Space Mono',monospace; color:var(--accent); }
-  .tbl tr:last-child td { border-bottom:none; }
-
-  /* ── 미니 차트 (SVG) */
-  .chart-wrap { width:100%; overflow:hidden; border-radius:8px; margin-top:4px; }
-
-  /* ── GT 개선 바 */
-  .gt-row { display:flex; align-items:center; gap:8px; margin-bottom:10px; font-size:11px; }
-  .gt-h { font-family:'Space Mono',monospace; color:var(--sub); width:32px; flex-shrink:0; }
-  .gt-bar-track { flex:1; height:5px; background:var(--muted); border-radius:3px; overflow:hidden; }
-  .gt-bar-fill { height:5px; border-radius:3px; transition:width 1s ease; }
-  .gt-val { font-family:'Space Mono',monospace; font-size:10px; width:52px; text-align:right; flex-shrink:0; }
-
-  /* ── 레짐 뱃지 */
-  .regime-badge { display:inline-flex; align-items:center; gap:4px; padding:3px 8px;
-    border-radius:4px; font-size:10px; font-family:'Space Mono',monospace; }
-
-  /* ── 전략 카드 */
-  .strat-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-  .strat-kpi { background:var(--s2); border:1px solid var(--border); border-radius:8px; padding:10px 12px; }
-  .strat-val { font-family:'Space Mono',monospace; font-size:18px; font-weight:700; }
-  .strat-label { font-size:9px; color:var(--sub); margin-top:3px; }
-
-  /* ── 로딩 플레이스홀더 */
-  .placeholder { text-align:center; padding:60px 20px; color:var(--sub); font-size:13px; }
-  .placeholder .icon { font-size:36px; margin-bottom:12px; }
-
-  /* ── 이벤트 라인 */
-  .event-tag { display:inline-block; padding:2px 7px; border-radius:3px; font-size:9px;
-    font-family:'Space Mono',monospace; margin-top:4px; }
-
-  /* ── 스크롤 힌트 */
-  .scroll-hint { font-size:9px; color:var(--muted); text-align:right; margin-bottom:6px; }
-
-  /* 애니메이션 */
-  @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
-  .fade-in { animation:fadeIn .3s ease forwards; }
-  .blink { animation:pulse 1.2s ease infinite; }
-
-  /* 차트 SVG 공통 */
-  .chart-svg text { font-family:'Space Mono',monospace; }
+:root{--bg:#060810;--s1:#0c0f1a;--s2:#111520;--border:#1c2238;--accent:#00c8ff;--gold:#f0a020;--green:#00e676;--red:#ff3d57;--purple:#b060ff;--muted:#2a3350;--text:#dde4f4;--sub:#5a6888;--safe-top:env(safe-area-inset-top,0px);--safe-bot:env(safe-area-inset-bottom,0px)}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-serif;overscroll-behavior:none}
+#app{display:flex;flex-direction:column;height:100vh;height:100dvh}
+#header{padding:calc(var(--safe-top) + 12px) 16px 12px;background:var(--s1);border-bottom:1px solid var(--border);flex-shrink:0}
+.hrow{display:flex;align-items:center;gap:8px}
+.htitle{font-family:'Space Mono',monospace;font-size:12px;font-weight:700;color:var(--accent);letter-spacing:1px}
+.hsub{font-size:9px;color:var(--sub);margin-top:1px;font-family:'Space Mono',monospace}
+.hicon{font-size:18px;filter:drop-shadow(0 0 5px var(--accent))}
+.date-row{display:flex;gap:6px;margin-top:10px;align-items:center}
+.date-inp{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--text);font-size:11px;font-family:'Space Mono',monospace;-webkit-appearance:none;outline:none}
+.date-inp:focus{border-color:var(--accent)}
+.run-btn{padding:7px 14px;background:var(--accent);border:none;border-radius:6px;color:var(--bg);font-weight:700;font-size:11px;font-family:'Space Mono',monospace;cursor:pointer;white-space:nowrap;-webkit-appearance:none}
+.run-btn:active{opacity:.7}
+.run-btn.running{background:var(--muted);color:var(--sub)}
+.run-btn.done{background:var(--green)}
+.today-btn{padding:6px 10px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--sub);font-size:10px;font-family:'Space Mono',monospace;cursor:pointer;white-space:nowrap}
+#pw{height:2px;background:var(--muted);flex-shrink:0;display:none}
+#pf{height:2px;background:var(--accent);width:0%;transition:width .4s;box-shadow:0 0 8px var(--accent)}
+#tabbar{display:flex;overflow-x:auto;scrollbar-width:none;background:var(--s1);border-bottom:1px solid var(--border);flex-shrink:0}
+#tabbar::-webkit-scrollbar{display:none}
+.tab{flex-shrink:0;padding:11px 14px;background:none;border:none;border-bottom:2px solid transparent;color:var(--sub);font-size:10px;font-family:'Space Mono',monospace;cursor:pointer;white-space:nowrap}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+#content{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding:14px}
+#content::-webkit-scrollbar{display:none}
+#navbar{display:flex;background:var(--s1);border-top:1px solid var(--border);padding-bottom:var(--safe-bot);flex-shrink:0}
+.nav{flex:1;padding:9px 0 7px;background:none;border:none;color:var(--sub);font-size:9px;font-family:'Space Mono',monospace;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px}
+.nav.active{color:var(--accent)}
+.nav .ni{font-size:16px}
+.card{background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px}
+.ctitle{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--accent);margin-bottom:12px}
+.kpi{background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:11px 8px;text-align:center}
+.kpi.pass{border-color:rgba(0,230,118,.35);background:rgba(0,230,118,.04)}
+.kpi.fail{border-color:rgba(255,61,87,.35);background:rgba(255,61,87,.04)}
+.kv{font-family:'Space Mono',monospace;font-size:19px;font-weight:700}
+.kl{font-size:9px;color:var(--sub);margin-top:2px}
+.ks{font-size:10px;color:var(--sub);margin-top:5px}
+.tbl{width:100%;border-collapse:collapse;font-size:11px}
+.tbl th{padding:6px 7px;color:var(--sub);font-weight:400;font-family:'Space Mono',monospace;font-size:9px;border-bottom:1px solid var(--border);text-align:right}
+.tbl th:first-child{text-align:left}
+.tbl td{padding:7px 7px;border-bottom:1px solid rgba(28,34,56,.5);text-align:right}
+.tbl td:first-child{text-align:left;font-family:'Space Mono',monospace;color:var(--accent)}
+.tbl tr:last-child td{border-bottom:none}
+.sc-card{background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px}
+.sc-slider{width:100%;-webkit-appearance:none;height:4px;border-radius:2px;outline:none;margin:8px 0;background:var(--muted)}
+.sc-slider::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;cursor:pointer;border:2px solid var(--bg)}
+.wi-result{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;margin-top:8px}
+.wi-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(28,34,56,.4)}
+.wi-row:last-child{border-bottom:none}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.fi{animation:fadeIn .25s ease forwards}
 </style>
 </head>
 <body>
 <div id="app">
-
-  <!-- 헤더 -->
-  <div id="header">
-    <div class="header-row">
-      <span class="header-icon">⬡</span>
-      <div>
-        <div class="header-title">LME NICKEL CLASS 1</div>
-        <div class="header-sub">BACKTEST · ENSEMBLE v2 · GAME THEORY</div>
-      </div>
-      <button class="run-btn" id="runBtn" onclick="runBacktest()">▶ 실행</button>
-    </div>
+<div id="header">
+  <div class="hrow">
+    <span class="hicon">⬡</span>
+    <div><div class="htitle">LME NICKEL CLASS 1</div><div class="hsub" id="hdate">BACKTEST · ENSEMBLE v2 · GAME THEORY v2</div></div>
   </div>
-
-  <!-- 진행 바 -->
-  <div id="progress-wrap"><div id="progress-fill"></div></div>
-
-  <!-- 탭 바 -->
-  <div id="tabbar">
-    <button class="tab-btn active" onclick="switchTab('overview')">개요</button>
-    <button class="tab-btn"        onclick="switchTab('mape')">MAPE</button>
-    <button class="tab-btn"        onclick="switchTab('regime')">레짐</button>
-    <button class="tab-btn"        onclick="switchTab('gt')">게임이론</button>
-    <button class="tab-btn"        onclick="switchTab('strategy')">전략</button>
-    <button class="tab-btn"        onclick="switchTab('price')">가격</button>
-  </div>
-
-  <!-- 콘텐츠 -->
-  <div id="content">
-    <div class="placeholder" id="placeholder">
-      <div class="icon">📊</div>
-      <div>▶ 실행 버튼을 눌러<br>백테스트를 시작하세요</div>
-    </div>
-  </div>
-
-  <!-- 하단 내비 -->
-  <div id="navbar">
-    <button class="nav-btn active" id="nav-overview" onclick="switchTab('overview')">
-      <span class="nav-icon">◈</span><span>개요</span>
-    </button>
-    <button class="nav-btn" id="nav-mape" onclick="switchTab('mape')">
-      <span class="nav-icon">📉</span><span>MAPE</span>
-    </button>
-    <button class="nav-btn" id="nav-regime" onclick="switchTab('regime')">
-      <span class="nav-icon">⚡</span><span>레짐</span>
-    </button>
-    <button class="nav-btn" id="nav-gt" onclick="switchTab('gt')">
-      <span class="nav-icon">⚖</span><span>게임론</span>
-    </button>
-    <button class="nav-btn" id="nav-strategy" onclick="switchTab('strategy')">
-      <span class="nav-icon">💹</span><span>전략</span>
-    </button>
+  <div class="date-row">
+    <input class="date-inp" type="date" id="dateFrom">
+    <span style="color:var(--sub);font-size:11px">~</span>
+    <input class="date-inp" type="date" id="dateTo">
+    <button class="today-btn" onclick="setToday()">오늘</button>
+    <button class="run-btn" id="runBtn" onclick="runBacktest()">▶ 실행</button>
   </div>
 </div>
-
-<script>
-// ── 데이터 생성 ──────────────────────────────────────────────────
-function seededRng(seed) {
-  let s = seed >>> 0;
-  return () => { s = Math.imul(s ^ (s >>> 13), s | 1) ^ (s ^ (s >>> 7)) ^ (s ^ (s << 17)); return (s >>> 0) / 0xFFFFFFFF; };
-}
-
-function generateData() {
-  const rng = seededRng(20220308);
-  const prices = [], dates = [];
-  let p = 14200;
-  const start = new Date('2018-01-01');
-
-  const events = {
-    '2019-09-01': { sh: 0.22, d: 45 },
-    '2020-03-15': { sh: -0.38, d: 60 },
-    '2021-01-01': { sh: 0.18, d: 90 },
-    '2022-02-24': { sh: 0.18, d: 10 },
-    '2022-03-08': { sh: 1.8,  d: 3, bs: true },
-    '2022-03-11': { sh: -0.55,d: 20 },
-    '2023-06-01': { sh: -0.15,d: 40 },
-  };
-
-  for (let d = 0; d < 365*7; d++) {
-    const dt = new Date(start); dt.setDate(start.getDate() + d);
-    if (dt.getDay() === 0 || dt.getDay() === 6) continue;
-    const ds = dt.toISOString().slice(0, 10);
-
-    let shock = 1;
-    let bs = false;
-    for (const [ed, ev] of Object.entries(events)) {
-      const diff = (dt - new Date(ed)) / 86400000;
-      if (diff >= 0 && diff < ev.d) {
-        shock *= 1 + ev.sh * Math.exp(-diff / (ev.d * 0.4)) * (1 / ev.d) * 2;
-        if (ev.bs && diff < 2) bs = true;
-      }
-    }
-    const sig = 0.018 + (p > 25000 ? 0.025 : 0);
-    p = Math.max(p * (1 + 0.00005 + sig * (rng()*2-1)*1.41) * shock, 8000);
-    const vol = sig * Math.sqrt(252);
-    prices.push({ date: ds, price: Math.round(p), regime: bs ? 2 : vol > 0.45 ? 2 : vol > 0.28 ? 1 : 0, bs });
-    dates.push(ds);
-  }
-  return prices;
-}
-
-function simulatePredictions(pd) {
-  const rng = seededRng(42);
-  const out = [];
-  const HZ = [
-    {h:'1d',  days:1,  bm:1.8,  bbs:8.2,  da:62.1},
-    {h:'5d',  days:5,  bm:3.2,  bbs:14.5, da:59.4},
-    {h:'21d', days:21, bm:4.1,  bbs:22.3, da:57.2},
-    {h:'42d', days:42, bm:4.7,  bbs:28.1, da:55.8},
-    {h:'63d', days:63, bm:5.1,  bbs:31.4, da:53.9},
-  ];
-
-  for (let i = 120; i < pd.length - 70; i += 3) {
-    const row = pd[i];
-    for (const {h, days, bm, bbs} of HZ) {
-      if (i + days >= pd.length) continue;
-      const actual = pd[i + days]?.price; if (!actual) continue;
-      const isBs = pd.slice(i, i+days).some(r => r.bs || r.regime===2);
-      const err = (isBs ? bbs : bm) / 100;
-      const bias = (actual / row.price - 1) * (0.6 + rng() * 0.3);
-      const pEns = row.price * (1 + bias + (rng()-.5)*err*2);
-      const alpha = row.regime===2 ? (rng()-.3)*.3 : row.regime===1 ? (rng()-.4)*.15 : (rng()-.5)*.06;
-      const pGt = pEns * (1 + alpha);
-      const cp = row.regime===2 ? .35 : row.regime===1 ? .20 : .10;
-      const pFin = Math.max(Math.min(pGt, row.price*(1+cp)), row.price*(1-cp));
-      out.push({
-        date: row.date, horizon: h, actual, pred_ens: Math.round(pEns),
-        pred_final: Math.round(pFin), cur: row.price,
-        alpha: +alpha.toFixed(4), regime: row.regime, is_bs: isBs,
-        me: +Math.abs(pEns-actual)/actual*100..toFixed(2),
-        mf: +Math.abs(pFin-actual)/actual*100..toFixed(2),
-        dir: (pFin > row.price) === (actual > row.price) ? 1 : 0,
-      });
-    }
-  }
-  return out;
-}
-
-function metrics(recs, h, split='all') {
-  let r = recs.filter(x => x.horizon === h);
-  if (split==='normal')   r = r.filter(x => x.regime===0);
-  if (split==='elevated') r = r.filter(x => x.regime===1);
-  if (split==='crisis')   r = r.filter(x => x.regime===2);
-  if (split==='bs')       r = r.filter(x => x.is_bs);
-  if (!r.length) return null;
-  const me = r.reduce((s,x)=>s+x.me,0)/r.length;
-  const mf = r.reduce((s,x)=>s+x.mf,0)/r.length;
-  const da = r.reduce((s,x)=>s+x.dir,0)/r.length*100;
-  const rets = r.map(x => x.dir ? (x.actual-x.cur)/x.cur : -(x.actual-x.cur)/x.cur);
-  const mu = rets.reduce((a,b)=>a+b,0)/rets.length;
-  const sd = Math.sqrt(rets.reduce((s,x)=>s+(x-mu)**2,0)/rets.length);
-  return { h, N:r.length, me:+me.toFixed(2), mf:+mf.toFixed(2), da:+da.toFixed(1),
-    sharpe:+(mu/(sd||1)*Math.sqrt(252)).toFixed(2), imp:+(me-mf).toFixed(2), pass: mf<5 };
-}
-
-function cumReturns(recs, h='5d') {
-  const rows = recs.filter(r=>r.horizon===h).sort((a,b)=>a.date.localeCompare(b.date));
-  let sc=1, bh=1;
-  return rows.map((r,i) => {
-    const ret = (r.actual-r.cur)/r.cur;
-    sc *= 1 + (r.dir ? ret:-ret) - .001;
-    bh *= 1 + ret;
-    return {i, s:+((sc-1)*100).toFixed(1), b:+((bh-1)*100).toFixed(1)};
-  }).filter((_,i)=>i%5===0);
-}
-
-// ── 상태 ─────────────────────────────────────────────────────────
-let STATE = { done:false, tab:'overview', priceData:[], records:[], overview:[] };
-const HZ_LABELS = {'1d':'D+1','5d':'D+5','21d':'D+21','42d':'D+42','63d':'D+63'};
-const COLORS = { accent:'#00c8ff', gold:'#f0a020', green:'#00e676', red:'#ff3d57', sub:'#5a6888', muted:'#2a3350' };
-
-// ── 백테스트 실행 ─────────────────────────────────────────────────
-function runBacktest() {
-  if (STATE.done) return;
-  const btn = document.getElementById('runBtn');
-  const pw  = document.getElementById('progress-wrap');
-  const pf  = document.getElementById('progress-fill');
-  btn.textContent = '처리중...'; btn.className = 'run-btn running';
-  pw.style.display = 'block';
-
-  const steps = [
-    [300, 15, 'EVT GPD 피팅...'],
-    [400, 32, '피처 엔지니어링 (48개)...'],
-    [500, 50, '레짐 감지 (3단계)...'],
-    [600, 68, '앙상블 OOF 예측...'],
-    [400, 82, '게임이론 α 적용...'],
-    [300, 94, '블랙스완 클램프...'],
-    [200, 100,'집계 완료'],
-  ];
-
-  let i = 0;
-  function next() {
-    if (i >= steps.length) {
-      // 데이터 생성
-      STATE.priceData = generateData();
-      STATE.records   = simulatePredictions(STATE.priceData);
-      STATE.overview  = ['1d','5d','21d','42d','63d'].map(h => metrics(STATE.records, h)).filter(Boolean);
-      STATE.done = true;
-      btn.textContent = '✓ 완료'; btn.className = 'run-btn done';
-      pw.style.display = 'none';
-      document.getElementById('placeholder').style.display = 'none';
-      renderTab(STATE.tab);
-      return;
-    }
-    const [ms, pct, msg] = steps[i++];
-    pf.style.width = pct + '%';
-    btn.textContent = msg;
-    setTimeout(next, ms);
-  }
-  next();
-}
-
-// ── 탭 전환 ──────────────────────────────────────────────────────
-function switchTab(name) {
-  STATE.tab = name;
-  document.querySelectorAll('.tab-btn').forEach((b,i) => {
-    const tabs = ['overview','mape','regime','gt','strategy','price'];
-    b.classList.toggle('active', tabs[i]===name);
-  });
-  document.querySelectorAll('.nav-btn').forEach(b => {
-    b.classList.toggle('active', b.id==='nav-'+name);
-  });
-  if (STATE.done) renderTab(name);
-}
-
-function renderTab(name) {
-  const el = document.getElementById('content');
-  el.scrollTop = 0;
-  const renders = { overview:renderOverview, mape:renderMape, regime:renderRegime, gt:renderGT, strategy:renderStrategy, price:renderPrice };
-  const fn = renders[name];
-  if (fn) { el.innerHTML = ''; fn(el); }
-}
-
-// ── 렌더: 개요 ───────────────────────────────────────────────────
-function renderOverview(el) {
-  const ov = STATE.overview;
-
-  // MAPE KPI 5개
-  let kpis = `<div style="overflow-x:auto;padding-bottom:4px">
-    <div style="display:flex;gap:8px;width:max-content;padding-bottom:2px">`;
-  ov.forEach(m => {
-    kpis += `<div class="kpi ${m.pass?'pass':'fail'}" style="min-width:90px">
-      <div class="kpi-val" style="color:${m.pass?'var(--green)':'var(--red)'}">${m.mf}%</div>
-      <div class="kpi-label">${HZ_LABELS[m.h]} MAPE</div>
-      <div class="kpi-sub">${m.da}% DA</div>
-      <div class="badge">${m.pass?'✅':'❌'}</div>
-    </div>`;
-  });
-  kpis += `</div></div>`;
-
-  // GT 기여도
-  let gtRows = '';
-  ov.forEach(m => {
-    const pct = Math.min(Math.abs(m.imp)/4*100, 100);
-    const color = m.imp>0 ? COLORS.green : COLORS.red;
-    gtRows += `<div class="gt-row">
-      <span class="gt-h">${HZ_LABELS[m.h]}</span>
-      <span style="font-size:10px;color:var(--red);width:36px;text-align:right">${m.me}%</span>
-      <span style="font-size:10px;color:var(--sub);margin:0 3px">→</span>
-      <span style="font-size:10px;color:${m.pass?'var(--green)':'var(--gold)'};width:36px">${m.mf}%</span>
-      <div class="gt-bar-track">
-        <div class="gt-bar-fill" style="width:${pct}%;background:${color}"></div>
-      </div>
-      <span class="gt-val" style="color:${color}">${m.imp>0?'↓':'↑'}${Math.abs(m.imp).toFixed(1)}%p</span>
-    </div>`;
-  });
-
-  // 레짐 분포
-  const rc = [0,0,0]; STATE.priceData.forEach(d=>rc[d.regime]++);
-  const total = rc.reduce((a,b)=>a+b,0);
-  const regColors = [COLORS.green, COLORS.gold, COLORS.red];
-  const regNames  = ['저변동','고변동','위기'];
-  let regHtml = `<div style="display:flex;gap:10px">`;
-  rc.forEach((c,i) => {
-    const pct = (c/total*100).toFixed(0);
-    regHtml += `<div style="flex:1;text-align:center">
-      <div style="font-size:20px;font-weight:700;color:${regColors[i]};font-family:'Space Mono',monospace">${c}</div>
-      <div style="font-size:9px;color:var(--sub)">거래일</div>
-      <div style="font-size:11px;color:${regColors[i]};margin-top:3px">${regNames[i]}</div>
-      <div style="font-size:10px;color:var(--sub)">${pct}%</div>
-    </div>`;
-  });
-  regHtml += `</div>`;
-  // 레짐 바
-  regHtml += `<div style="display:flex;height:6px;border-radius:3px;overflow:hidden;margin-top:10px">`;
-  rc.forEach((c,i) => regHtml += `<div style="flex:${c};background:${regColors[i]}"></div>`);
-  regHtml += `</div>`;
-
-  el.innerHTML = `
-    <div class="card fade-in">
-      <div class="card-title">MAPE 목표 달성 여부 (목표 &lt; 5%)</div>
-      <div class="scroll-hint">← 가로 스크롤</div>
-      ${kpis}
-    </div>
-    <div class="card fade-in" style="animation-delay:.05s">
-      <div class="card-title">게임이론 레이어 기여도</div>
-      <div style="font-size:9px;color:var(--sub);margin-bottom:8px;font-family:'Space Mono',monospace">앙상블 → GT+클램프 후 MAPE 변화</div>
-      ${gtRows}
-    </div>
-    <div class="card fade-in" style="animation-delay:.1s">
-      <div class="card-title">레짐 분포 (2018–2024)</div>
-      ${regHtml}
-    </div>`;
-}
-
-// ── 렌더: MAPE 분석 ──────────────────────────────────────────────
-function renderMape(el) {
-  // SVG 바 차트
-  const ov = STATE.overview;
-  const W = Math.min(window.innerWidth - 48, 400), H = 180;
-  const bw = W / ov.length * 0.35, gap = W / ov.length;
-  const maxV = 8;
-
-  let bars = '';
-  ov.forEach((m, i) => {
-    const x = gap * i + gap * 0.15;
-    const hE = (m.me / maxV) * (H - 40);
-    const hF = (m.mf / maxV) * (H - 40);
-    const yE = H - 25 - hE, yF = H - 25 - hF;
-    bars += `
-      <rect x="${x}" y="${yE}" width="${bw}" height="${hE}" fill="${COLORS.red}88" rx="3"/>
-      <rect x="${x+bw+3}" y="${yF}" width="${bw}" height="${hF}" fill="${m.pass?COLORS.green+'bb':COLORS.gold+'bb'}" rx="3"/>
-      <text x="${x+bw}" y="${H-8}" text-anchor="middle" fill="${COLORS.sub}" font-size="9">${HZ_LABELS[m.h]}</text>
-    `;
-  });
-  // 기준선 5%
-  const y5 = H - 25 - (5/maxV)*(H-40);
-  const svgChart = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px">
-    <line x1="0" y1="${y5}" x2="${W}" y2="${y5}" stroke="${COLORS.gold}" stroke-dasharray="4,3" stroke-width="1"/>
-    <text x="${W-4}" y="${y5-4}" text-anchor="end" fill="${COLORS.gold}" font-size="9">5% 목표</text>
-    ${bars}
-    <rect x="10" y="8" width="10" height="8" fill="${COLORS.red}88" rx="2"/>
-    <text x="24" y="16" fill="${COLORS.sub}" font-size="9">앙상블</text>
-    <rect x="70" y="8" width="10" height="8" fill="${COLORS.green}bb" rx="2"/>
-    <text x="84" y="16" fill="${COLORS.sub}" font-size="9">GT+클램프</text>
-  </svg>`;
-
-  // 히트맵 테이블
-  const splits = ['all','normal','elevated','crisis','bs'];
-  const sNames = ['전체','저변동','고변동','위기','BS'];
-  let rows = '';
-  ov.forEach(m => {
-    let cells = `<td>${HZ_LABELS[m.h]}</td>`;
-    splits.forEach((s,si) => {
-      const mx = metrics(STATE.records, m.h, s);
-      if (!mx) { cells += `<td style="color:var(--muted)">—</td>`; return; }
-      const c = mx.mf < 3 ? COLORS.green : mx.mf < 5 ? COLORS.gold : COLORS.red;
-      cells += `<td style="color:${c};font-weight:${mx.mf<5?700:400}">${mx.mf}%</td>`;
-    });
-    rows += `<tr>${cells}</tr>`;
-  });
-
-  el.innerHTML = `
-    <div class="card fade-in">
-      <div class="card-title">MAPE 비교 (앙상블 vs GT+클램프)</div>
-      <div class="chart-wrap">${svgChart}</div>
-    </div>
-    <div class="card fade-in" style="animation-delay:.06s">
-      <div class="card-title">레짐 × 지평 MAPE 히트맵</div>
-      <div style="overflow-x:auto">
-        <table class="tbl" style="min-width:340px">
-          <thead><tr>
-            <th>지평</th>${sNames.map(s=>`<th>${s}</th>`).join('')}
-          </tr></thead>
-          <tbody>${rows}</tbody>
-        </table>
-      </div>
-    </div>`;
-}
-
-// ── 렌더: 레짐 ───────────────────────────────────────────────────
-function renderRegime(el) {
-  const regColors = [COLORS.green, COLORS.gold, COLORS.red];
-  const regNames  = ['저변동 (Normal)','고변동 (Elevated)','위기 (Crisis)'];
-  const splits    = ['normal','elevated','crisis'];
-  let cards = '';
-  splits.forEach((s,si) => {
-    let rows = '';
-    ['1d','5d','21d','42d','63d'].forEach(h => {
-      const m = metrics(STATE.records, h, s); if(!m) return;
-      rows += `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
-        <span style="font-family:'Space Mono',monospace;color:var(--sub);font-size:11px">${HZ_LABELS[h]}</span>
-        <span style="font-family:'Space Mono',monospace;color:${m.pass?COLORS.green:COLORS.red};font-size:12px;font-weight:700">${m.mf}%</span>
-        <span style="color:var(--sub);font-size:10px">${m.da}% DA</span>
-        <span style="font-size:10px">${m.pass?'✅':'❌'}</span>
-      </div>`;
-    });
-    cards += `<div class="card fade-in" style="animation-delay:${si*.05}s;border-color:${regColors[si]}44">
-      <div class="card-title" style="color:${regColors[si]}">${regNames[si]}</div>
-      ${rows}
-    </div>`;
-  });
-
-  // 블랙스완 카드
-  let bsRows = '';
-  ['1d','5d','21d','42d','63d'].forEach(h => {
-    const bs  = metrics(STATE.records, h, 'bs');
-    const all = metrics(STATE.records, h, 'all');
-    if (!bs) return;
-    const imp = (bs.me - bs.mf).toFixed(1);
-    bsRows += `<tr>
-      <td>${HZ_LABELS[h]}</td>
-      <td style="color:${COLORS.red}">${bs.me}%</td>
-      <td style="color:${COLORS.gold}">${bs.mf}%</td>
-      <td style="color:${parseFloat(imp)>0?COLORS.green:COLORS.red}">${parseFloat(imp)>0?'↓':'↑'}${Math.abs(imp)}%p</td>
-    </tr>`;
-  });
-
-  el.innerHTML = `${cards}
-    <div class="card fade-in" style="animation-delay:.15s;border-color:${COLORS.red}44">
-      <div class="card-title" style="color:${COLORS.red}">블랙스완 이벤트 구간</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
-        <div style="padding:10px;background:rgba(255,61,87,.08);border-radius:8px;border:1px solid rgba(255,61,87,.2)">
-          <div style="font-size:10px;color:var(--sub)">2022-03-08</div>
-          <div style="font-size:11px;color:${COLORS.red};margin-top:2px">Tsingshan 숏스퀴즈</div>
-          <div style="font-size:10px;color:var(--sub);margin-top:4px">+250% / LME 취소</div>
-          <span class="event-tag" style="background:rgba(255,61,87,.15);color:${COLORS.red}">L3 경보 · α=+0.28</span>
-        </div>
-        <div style="padding:10px;background:rgba(240,160,32,.08);border-radius:8px;border:1px solid rgba(240,160,32,.2)">
-          <div style="font-size:10px;color:var(--sub)">2020-03-15</div>
-          <div style="font-size:11px;color:${COLORS.gold};margin-top:2px">COVID 수요 붕괴</div>
-          <div style="font-size:10px;color:var(--sub);margin-top:4px">60일 -38%</div>
-          <span class="event-tag" style="background:rgba(240,160,32,.15);color:${COLORS.gold}">L2 경보 · α=-0.19</span>
-        </div>
-      </div>
-      <div style="overflow-x:auto">
-        <table class="tbl">
-          <thead><tr><th>지평</th><th>앙상블</th><th>클램프後</th><th>개선</th></tr></thead>
-          <tbody>${bsRows}</tbody>
-        </table>
-      </div>
-    </div>`;
-}
-
-// ── 렌더: 게임이론 ───────────────────────────────────────────────
-function renderGT(el) {
-  const alphaData = [
-    { regime:'저변동', mean:0.008, std:0.021, color:COLORS.green },
-    { regime:'고변동', mean:0.031, std:0.068, color:COLORS.gold },
-    { regime:'위기',   mean:0.142, std:0.112, color:COLORS.red },
-  ];
-
-  let alphaCards = `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px">`;
-  alphaData.forEach(a => {
-    alphaCards += `<div style="background:rgba(0,0,0,.3);border:1px solid ${a.color}33;border-radius:8px;padding:10px;text-align:center">
-      <div style="font-size:9px;color:${a.color};font-family:'Space Mono',monospace">${a.regime}</div>
-      <div style="font-size:18px;font-weight:700;color:${a.color};font-family:'Space Mono',monospace;margin-top:4px">${a.mean>0?'+':''}${a.mean.toFixed(3)}</div>
-      <div style="font-size:9px;color:var(--sub);margin-top:3px">σ ${a.std.toFixed(3)}</div>
-    </div>`;
-  });
-  alphaCards += `</div>`;
-
-  // Nash 균형 상태
-  const states = [['STABLE','안정',72,COLORS.green],['WATCH','주의',18,COLORS.gold],['UNSTABLE','불안정',7,COLORS.red],['SQUEEZE','스퀴즈',3,COLORS.red]];
-  let nashHtml = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">`;
-  states.forEach(([k,l,pct,c]) => {
-    nashHtml += `<div style="text-align:center;padding:10px;background:${c}11;border:1px solid ${c}33;border-radius:8px">
-      <div style="font-size:18px;font-weight:700;color:${c};font-family:'Space Mono',monospace">${pct}%</div>
-      <div style="font-size:10px;color:${c}">${l}</div>
-      <div style="font-size:9px;color:var(--sub);margin-top:2px">${k}</div>
-    </div>`;
-  });
-  nashHtml += `</div>`;
-
-  // Stackelberg 원가 구조
-  const costData = [
-    { name:'인니 NPI', cost:8000 }, { name:'황화물 평균', cost:12000 },
-    { name:'HPAL', cost:15000 }, { name:'고원가', cost:20000 },
-  ];
-  const maxCost = 22000;
-  let costBars = '';
-  costData.forEach(c => {
-    const pct = c.cost / maxCost * 100;
-    costBars += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-      <div style="font-size:10px;color:var(--sub);width:80px;flex-shrink:0">${c.name}</div>
-      <div style="flex:1;height:5px;background:var(--muted);border-radius:3px;overflow:hidden">
-        <div style="height:5px;background:${COLORS.accent};width:${pct}%"></div>
-      </div>
-      <div style="font-size:10px;color:${COLORS.accent};font-family:'Space Mono',monospace;width:60px;text-align:right">$${c.cost.toLocaleString()}</div>
-    </div>`;
-  });
-
-  el.innerHTML = `
-    <div class="card fade-in">
-      <div class="card-title">α 계수 레짐별 분포</div>
-      ${alphaCards}
-      <div style="font-size:10px;color:var(--sub);line-height:1.6">
-        α = 앙상블 예측에 곱해지는 게임이론 조정계수.<br>
-        위기 레짐에서 변동성이 크게 증가 (σ 0.112).
-      </div>
-    </div>
-    <div class="card fade-in" style="animation-delay:.06s">
-      <div class="card-title">Nash-Stackelberg 균형 상태</div>
-      ${nashHtml}
-    </div>
-    <div class="card fade-in" style="animation-delay:.1s">
-      <div class="card-title">Stackelberg 원가 구조 (생산자 레이어)</div>
-      ${costBars}
-      <div style="font-size:10px;color:var(--sub);margin-top:6px">글로벌 평균 원가: <span style="color:${COLORS.accent};font-family:'Space Mono',monospace">$13,500/MT</span></div>
-    </div>`;
-}
-
-// ── 렌더: 전략 ───────────────────────────────────────────────────
-function renderStrategy(el) {
-  const stratData = cumReturns(STATE.records, '5d');
-  const W = Math.min(window.innerWidth - 48, 400), H = 200;
-  const n = stratData.length;
-  const allVals = stratData.flatMap(d => [d.s, d.b]);
-  const minV = Math.min(...allVals), maxV = Math.max(...allVals);
-  const scX = i => (i / (n-1)) * (W - 20) + 10;
-  const scY = v => H - 30 - ((v - minV) / (maxV - minV + 0.001)) * (H - 50);
-
-  const polyS = stratData.map((d,i) => `${scX(i)},${scY(d.s)}`).join(' ');
-  const polyB = stratData.map((d,i) => `${scX(i)},${scY(d.b)}`).join(' ');
-  const areaS = `${scX(0)},${H-30} ${polyS} ${scX(n-1)},${H-30}`;
-  const areaB = `${scX(0)},${H-30} ${polyB} ${scX(n-1)},${H-30}`;
-  const y0 = scY(0);
-
-  const svgChart = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px">
-    <polygon points="${areaS}" fill="${COLORS.green}" opacity="0.12"/>
-    <polygon points="${areaB}" fill="${COLORS.sub}"   opacity="0.08"/>
-    <line x1="10" y1="${y0}" x2="${W-10}" y2="${y0}" stroke="${COLORS.muted}" stroke-width="1"/>
-    <polyline points="${polyS}" fill="none" stroke="${COLORS.green}" stroke-width="2"/>
-    <polyline points="${polyB}" fill="none" stroke="${COLORS.sub}"   stroke-width="1.5" stroke-dasharray="4,3"/>
-    <circle cx="${scX(n-1)}" cy="${scY(stratData[n-1].s)}" r="4" fill="${COLORS.green}"/>
-    <text x="${scX(n-1)-4}" y="${scY(stratData[n-1].s)-8}" text-anchor="end" fill="${COLORS.green}" font-size="10">${stratData[n-1].s.toFixed(0)}%</text>
-    <circle cx="${scX(n-1)}" cy="${scY(stratData[n-1].b)}" r="3" fill="${COLORS.sub}"/>
-    <text x="${scX(n-1)-4}" y="${scY(stratData[n-1].b)+14}" text-anchor="end" fill="${COLORS.sub}" font-size="10">${stratData[n-1].b.toFixed(0)}%</text>
-    <text x="14" y="${H-12}" fill="${COLORS.sub}" font-size="9">2018</text>
-    <text x="${W-14}" y="${H-12}" text-anchor="end" fill="${COLORS.sub}" font-size="9">2024</text>
-    <rect x="10" y="8" width="8" height="4" fill="${COLORS.green}" rx="1"/>
-    <text x="22" y="14" fill="${COLORS.sub}" font-size="9">방향성 전략</text>
-    <rect x="90" y="8" width="8" height="4" fill="${COLORS.sub}" rx="1"/>
-    <text x="102" y="14" fill="${COLORS.sub}" font-size="9">Buy &amp; Hold</text>
-  </svg>`;
-
-  el.innerHTML = `
-    <div class="strat-grid fade-in" style="margin-bottom:12px">
-      <div class="strat-kpi">
-        <div class="strat-val" style="color:${COLORS.green}">58.3%</div>
-        <div class="strat-label">승률 (D+5)</div>
-      </div>
-      <div class="strat-kpi">
-        <div class="strat-val" style="color:${COLORS.green}">+42.1%</div>
-        <div class="strat-label">전략 누적 수익</div>
-      </div>
-      <div class="strat-kpi">
-        <div class="strat-val" style="color:var(--sub)">+18.3%</div>
-        <div class="strat-label">Buy &amp; Hold</div>
-      </div>
-      <div class="strat-kpi">
-        <div class="strat-val" style="color:${COLORS.gold}">0.74</div>
-        <div class="strat-label">Sharpe Ratio</div>
-      </div>
-    </div>
-    <div class="card fade-in" style="animation-delay:.05s">
-      <div class="card-title">누적 수익률 (방향성 전략 vs B&amp;H)</div>
-      <div class="chart-wrap">${svgChart}</div>
-    </div>
-    <div class="card fade-in" style="animation-delay:.1s">
-      <div class="card-title">지평별 전략 성과</div>
-      <table class="tbl">
-        <thead><tr><th>지평</th><th>승률</th><th>Sharpe</th><th>MAPE</th></tr></thead>
-        <tbody>
-          ${STATE.overview.map(m=>`<tr>
-            <td>${HZ_LABELS[m.h]}</td>
-            <td style="color:${m.da>55?COLORS.green:COLORS.sub}">${m.da}%</td>
-            <td style="color:${m.sharpe>0.5?COLORS.green:COLORS.sub}">${m.sharpe}</td>
-            <td style="color:${m.pass?COLORS.green:COLORS.red}">${m.mf}%</td>
-          </tr>`).join('')}
-        </tbody>
-      </table>
-    </div>`;
-}
-
-// ── 렌더: 가격 차트 ──────────────────────────────────────────────
-function renderPrice(el) {
-  const pd = STATE.priceData.filter((_,i)=>i%3===0);
-  const W = Math.min(window.innerWidth - 48, 440), H = 240;
-  const prices = pd.map(d=>d.price);
-  const minP = Math.min(...prices), maxP = Math.max(...prices);
-  const scX = i => (i/(pd.length-1))*(W-20)+10;
-  const scY = p => H-35-((p-minP)/(maxP-minP))*(H-60);
-
-  const poly = pd.map((d,i)=>`${scX(i)},${scY(d.price)}`).join(' ');
-  const area = `${scX(0)},${H-35} ${poly} ${scX(pd.length-1)},${H-35}`;
-
-  // 이벤트 라인
-  const evDates = {'2022-03':['숏스퀴즈',COLORS.red],'2020-03':['COVID',COLORS.gold],'2019-09':['인니 발표',COLORS.accent]};
-  let evLines = '';
-  Object.entries(evDates).forEach(([ym,[label,c]])=>{
-    const idx = pd.findIndex(d=>d.date.startsWith(ym));
-    if(idx<0)return;
-    const x = scX(idx);
-    evLines += `<line x1="${x}" y1="20" x2="${x}" y2="${H-35}" stroke="${c}" stroke-dasharray="3,3" stroke-width="1" opacity="0.7"/>
-      <text x="${x+3}" y="18" fill="${c}" font-size="8">${label}</text>`;
-  });
-
-  // 레짐 컬러 도트
-  let dots = '';
-  pd.forEach((d,i)=>{
-    if(d.regime>0){
-      const c = d.regime===2?COLORS.red:COLORS.gold;
-      dots+=`<circle cx="${scX(i)}" cy="${scY(d.price)}" r="2" fill="${c}" opacity="0.5"/>`;
-    }
-  });
-
-  // Y축 레이블
-  const yTicks = [minP, (minP+maxP)/2, maxP].map(v=>({v, y:scY(v)}));
-  let yLabels = yTicks.map(t=>`<text x="8" y="${t.y+3}" fill="${COLORS.sub}" font-size="8">$${(t.v/1000).toFixed(0)}k</text>`).join('');
-
-  const svgChart = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px">
-    <defs>
-      <linearGradient id="pgrad" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="${COLORS.accent}" stop-opacity="0.25"/>
-        <stop offset="100%" stop-color="${COLORS.accent}" stop-opacity="0"/>
-      </linearGradient>
-    </defs>
-    ${evLines}
-    <polygon points="${area}" fill="url(#pgrad)"/>
-    <polyline points="${poly}" fill="none" stroke="${COLORS.accent}" stroke-width="1.5"/>
-    ${dots}
-    ${yLabels}
-    <text x="14" y="${H-18}" fill="${COLORS.sub}" font-size="8">2018</text>
-    <text x="${W/2}" y="${H-18}" text-anchor="middle" fill="${COLORS.sub}" font-size="8">2021</text>
-    <text x="${W-14}" y="${H-18}" text-anchor="end" fill="${COLORS.sub}" font-size="8">2024</text>
-  </svg>`;
-
-  // 최근 가격 스탯
-  const last = pd[pd.length-1];
-  const first = pd[0];
-  const chg = ((last.price/first.price-1)*100).toFixed(1);
-
-  el.innerHTML = `
-    <div class="card fade-in">
-      <div class="card-title">LME 니켈 Class 1 (2018–2024)</div>
-      ${svgChart}
-      <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
-        <span class="event-tag" style="background:rgba(255,61,87,.15);color:${COLORS.red}">● 위기 레짐</span>
-        <span class="event-tag" style="background:rgba(240,160,32,.15);color:${COLORS.gold}">● 고변동 레짐</span>
-      </div>
-    </div>
-    <div class="card fade-in" style="animation-delay:.06s">
-      <div class="card-title">데이터 요약</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div style="text-align:center">
-          <div style="font-size:17px;font-weight:700;color:${COLORS.accent};font-family:'Space Mono',monospace">$${last.price.toLocaleString()}</div>
-          <div style="font-size:9px;color:var(--sub)">최종 가격</div>
-        </div>
-        <div style="text-align:center">
-          <div style="font-size:17px;font-weight:700;color:${parseFloat(chg)>0?COLORS.green:COLORS.red};font-family:'Space Mono',monospace">${chg}%</div>
-          <div style="font-size:9px;color:var(--sub)">전체 수익률</div>
-        </div>
-        <div style="text-align:center">
-          <div style="font-size:17px;font-weight:700;color:${COLORS.text};font-family:'Space Mono',monospace">${pd.length.toLocaleString()}</div>
-          <div style="font-size:9px;color:var(--sub)">거래일</div>
-        </div>
-        <div style="text-align:center">
-          <div style="font-size:17px;font-weight:700;color:${COLORS.gold};font-family:'Space Mono',monospace">${STATE.records.length.toLocaleString()}</div>
-          <div style="font-size:9px;color:var(--sub)">예측 레코드</div>
-        </div>
-      </div>
-    </div>
-    <div style="font-size:9px;color:var(--sub);text-align:center;padding:8px">
-      * Yahoo Finance NI=F 기반 시뮬레이션 데이터
-    </div>`;
-}
-
-// ── 서비스워커 등록 ──────────────────────────────────────────────
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js').catch(() => {});
-}
-</script>
+<div id="pw"><div id="pf"></div></div>
+<div id="tabbar">
+  <div class="tab active" onclick="switchTab('overview')">개요</div>
+  <div class="tab" onclick="switchTab('whatif')">What-If</div>
+  <div class="tab" onclick="switchTab('mape')">MAPE</div>
+  <div class="tab" onclick="switchTab('regime')">레짐</div>
+  <div class="tab" onclick="switchTab('gt')">게임이론</div>
+  <div class="tab" onclick="switchTab('strategy')">전략</div>
+  <div class="tab" onclick="switchTab('price')">가격</div>
+</div>
+<div id="content">
+  <div style="text-align:center;padding:50px 20px;color:var(--sub)" id="placeholder">
+    <div style="font-size:32px;margin-bottom:12px">📊</div>
+    <div style="font-size:13px">날짜 설정 후 ▶ 실행을 누르세요<br><br>
+    <span style="font-size:11px;color:var(--muted)">기간 미설정 시 2018~오늘 전체 실행</span></div>
+  </div>
+</div>
+<div id="navbar">
+  <button class="nav active" id="nav-overview" onclick="switchTab('overview')"><span class="ni">◈</span><span>개요</span></button>
+  <button class="nav" id="nav-whatif" onclick="switchTab('whatif')"><span class="ni">🎲</span><span>What-If</span></button>
+  <button class="nav" id="nav-mape" onclick="switchTab('mape')"><span class="ni">📉</span><span>MAPE</span></button>
+  <button class="nav" id="nav-gt" onclick="switchTab('gt')"><span class="ni">⚖</span><span>게임론</span></button>
+  <button class="nav" id="nav-strategy" onclick="switchTab('strategy')"><span class="ni">💹</span><span>전략</span></button>
+</div>
+</div>
+<script src="app.js"></script>
 </body>
 </html>
