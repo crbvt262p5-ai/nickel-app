@@ -1,14 +1,24 @@
 {
   "name": "LME Nickel Predictor",
   "short_name": "NI Predict",
-  "description": "LME 니켈 Class 1 가격 예측 · 백테스트 대시보드",
+  "description": "LME \ub2c8\ucf08 Class 1 \uac00\uaca9 \uc608\uce21 \u00b7 \ubc31\ud14c\uc2a4\ud2b8 \ub300\uc2dc\ubcf4\ub4dc",
   "start_url": "https://crbvt262p5-ai.github.io/nickel-app/index.html",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#060810",
-  "theme_color": "#060810",
+  "background_color": "#f8fffe",
+  "theme_color": "#f8fffe",
   "icons": [
-    { "src": "icon-192.svg", "sizes": "192x192", "type": "image/svg+xml", "purpose": "any maskable" },
-    { "src": "icon-512.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "any maskable" }
+    {
+      "src": "icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
   ]
 }

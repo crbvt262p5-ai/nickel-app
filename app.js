@@ -1,58 +1,23 @@
-// ── 상수 & 색상 ─────────────────────────────────────────────────
+// ── 색상 & 상수 ─────────────────────────────────────────────────
+const C={teal:'#0d9488',blue:'#3b82f6',sky:'#0ea5e9',green:'#059669',red:'#e11d48',amber:'#d97706',purple:'#7c3aed',text:'#0f2027',text3:'#64748b',text4:'#94a3b8'};
 const HL={'1d':'D+1','5d':'D+5','21d':'D+21','42d':'D+42','63d':'D+63'};
-const C={accent:'#00c8ff',gold:'#f0a020',green:'#00e676',red:'#ff3d57',purple:'#b060ff',sub:'#5a6888',muted:'#2a3350'};
-const RC=[C.green,C.gold,C.red];
+const GT={alpha_max:0.50,crisis_mult:2.2,cot_w:0.45,stack_sens:1.8,squeeze_thr:3,vol_crisis:0.52};
 
-// ── 강화된 게임이론 설정 ─────────────────────────────────────────
-const GT={
-  alpha_max:0.50,
-  crisis_mult:2.2,
-  cot_w:0.45,
-  stack_sens:1.8,
-  squeeze_thr:3,
-  vol_crisis:0.52,
-};
-
-// ── 시드 난수 ────────────────────────────────────────────────────
-function mkRng(seed){
-  let s=seed>>>0;
-  return()=>{s=Math.imul(s^(s>>>13),s|1)^(s^(s>>>7))^(s^(s<<17));return(s>>>0)/0xFFFFFFFF};
-}
-
-// ── 날짜 유틸 ────────────────────────────────────────────────────
+function mkRng(seed){let s=seed>>>0;return()=>{s=Math.imul(s^(s>>>13),s|1)^(s^(s>>>7))^(s^(s<<17));return(s>>>0)/0xFFFFFFFF};}
 function today(){return new Date().toISOString().slice(0,10)}
 function fmt(d){return(d||'').replace(/-/g,'.')}
 
-function setToday(){
-  document.getElementById('dateTo').value=today();
-  const f=new Date();f.setFullYear(f.getFullYear()-4);
-  document.getElementById('dateFrom').value=f.toISOString().slice(0,10);
-}
-
 // 초기 날짜
-(function(){
-  const t=today(),f=new Date();f.setFullYear(f.getFullYear()-6);
-  document.getElementById('dateFrom').value=f.toISOString().slice(0,10);
-  document.getElementById('dateTo').value=t;
-  document.getElementById('hdate').textContent='오늘 기준: '+fmt(t);
-})();
+document.getElementById('dateRef').value=today();
 
-// ── 가격 데이터 생성 ─────────────────────────────────────────────
-function generatePrices(fromDate,toDate){
-  const r=mkRng(20220308);
-  const prices=[];
-  const start=new Date('2005-01-01');
-  const from=new Date(fromDate),to=new Date(toDate);
-  let p=9800;
-  const events={
-    '2007-10-01':{sh:0.35,d:90},'2008-09-15':{sh:-0.55,d:180},
-    '2014-01-12':{sh:0.15,d:45},'2016-01-01':{sh:-0.20,d:60},
-    '2019-09-01':{sh:0.22,d:45},'2020-03-15':{sh:-0.38,d:60},
-    '2021-01-01':{sh:0.18,d:90},'2022-02-24':{sh:0.18,d:10},
-    '2022-03-08':{sh:1.8,d:3,bs:true},'2022-03-11':{sh:-0.55,d:20},
-    '2023-06-01':{sh:-0.15,d:40},'2024-03-01':{sh:0.12,d:30},
-  };
-  for(let d=0;d<365*22;d++){
+// ── 가격 생성 ────────────────────────────────────────────────────
+function generatePrices(refDate){
+  const r=mkRng(20220308),prices=[];
+  const start=new Date('2018-01-01'),to=new Date(refDate);
+  to.setDate(to.getDate()+70);
+  let p=12000;
+  const events={'2019-09-01':{sh:0.22,d:45},'2020-03-15':{sh:-0.38,d:60},'2021-01-01':{sh:0.18,d:90},'2022-02-24':{sh:0.18,d:10},'2022-03-08':{sh:1.8,d:3,bs:true},'2022-03-11':{sh:-0.55,d:20},'2023-06-01':{sh:-0.15,d:40},'2024-03-01':{sh:0.12,d:30},'2025-01-01':{sh:0.08,d:30}};
+  for(let d=0;d<365*9;d++){
     const dt=new Date(start);dt.setDate(start.getDate()+d);
     if(dt.getDay()===0||dt.getDay()===6)continue;
     if(dt>to)break;
@@ -60,147 +25,99 @@ function generatePrices(fromDate,toDate){
     let shock=1,bs=false;
     for(const[ed,ev] of Object.entries(events)){
       const diff=(dt-new Date(ed))/86400000;
-      if(diff>=0&&diff<ev.d){
-        shock*=1+ev.sh*Math.exp(-diff/(ev.d*0.4))*(1/ev.d)*2;
-        if(ev.bs&&diff<2)bs=true;
-      }
+      if(diff>=0&&diff<ev.d){shock*=1+ev.sh*Math.exp(-diff/(ev.d*0.4))*(1/ev.d)*2;if(ev.bs&&diff<2)bs=true;}
     }
     const sig=0.017+(p>28000?0.028:p>20000?0.015:0);
-    p=Math.max(p*(1+0.00006+sig*(r()*2-1)*1.41)*shock,6000);
-    const vol=sig*Math.sqrt(252);
-    const regime=bs?2:vol>GT.vol_crisis?2:vol>0.27?1:0;
-    if(dt>=from)prices.push({date:ds,price:Math.round(p),regime,bs,vol:+vol.toFixed(3)});
+    p=Math.max(p*(1+0.00006+sig*(r()*2-1)*1.41)*shock,8000);
+    const vol=sig*Math.sqrt(252),regime=bs?2:vol>GT.vol_crisis?2:vol>0.27?1:0;
+    prices.push({date:ds,price:Math.round(p),regime,bs,vol:+vol.toFixed(3)});
   }
   return prices;
 }
 
-// ── 강화된 게임이론 α ────────────────────────────────────────────
+// ── 게임이론 α ───────────────────────────────────────────────────
 function calcAlpha(row,cotPct){
   cotPct=cotPct||50;
-  const{regime,price,vol}=row;
-  const cost=13500;
-  const dev=(price-cost)/cost;
-
-  // Stackelberg (원가 민감도 강화)
+  const{regime,price,vol}=row,cost=13500,dev=(price-cost)/cost;
   let stack=-Math.tanh(dev*GT.stack_sens);
-  if(price>cost*1.6)stack=-0.65;
-  else if(price<cost*0.82)stack=+0.65;
-
-  // Nash-COT (스퀴즈 임계값 강화)
+  if(price>cost*1.6)stack=-0.65;else if(price<cost*0.82)stack=+0.65;
   let nash=0;
-  if(cotPct<=GT.squeeze_thr)nash=+0.95;
-  else if(cotPct<=10)nash=+0.65;
-  else if(cotPct>=90)nash=-0.55;
-  else nash=-(cotPct-50)/50*0.45;
-
-  // RL 근사
-  let rl=0;
-  const z=(price-15000)/4000;
-  rl-=Math.tanh(z*0.8)*0.3;
+  if(cotPct<=GT.squeeze_thr)nash=+0.95;else if(cotPct<=10)nash=+0.65;else if(cotPct>=90)nash=-0.55;else nash=-(cotPct-50)/50*0.45;
+  let rl=0;const z=(price-15000)/4000;rl-=Math.tanh(z*0.8)*0.3;
   if(vol>0.50)rl+=(regime===2?-Math.sign(dev)*0.4:0);
-
-  // 레짐 배율
   const mult=regime===2?GT.crisis_mult:regime===1?1.4:1.0;
   const w=regime===2?{s:0.20,n:GT.cot_w,r:0.35}:regime===1?{s:0.35,n:0.38,r:0.27}:{s:0.50,n:0.30,r:0.20};
-  const raw=(w.s*stack+w.n*nash+w.r*rl)*mult;
-  return Math.max(Math.min(raw,GT.alpha_max),-GT.alpha_max);
+  return Math.max(Math.min((w.s*stack+w.n*nash+w.r*rl)*mult,GT.alpha_max),-GT.alpha_max);
 }
 
-// ── 예측 시뮬레이션 ──────────────────────────────────────────────
-function simulatePredictions(pd,cotPct){
-  const r=mkRng(42);
-  const HZ=[{h:'1d',days:1,bm:1.7,bbs:7.5},{h:'5d',days:5,bm:3.0,bbs:13.2},
-    {h:'21d',days:21,bm:3.9,bbs:20.8},{h:'42d',days:42,bm:4.5,bbs:26.4},{h:'63d',days:63,bm:4.9,bbs:29.7}];
-  const out=[];
-  for(let i=80;i<pd.length-70;i+=3){
-    const row=pd[i];
-    for(const{h,days,bm,bbs} of HZ){
-      if(i+days>=pd.length)continue;
-      const actual=pd[i+days]?.price;if(!actual)continue;
-      const isBs=pd.slice(i,i+days).some(x=>x.bs||x.regime===2);
-      const err=(isBs?bbs:bm)/100;
-      const bias=(actual/row.price-1)*(0.65+r()*0.25);
-      const pE=row.price*(1+bias+(r()-.5)*err*1.8);
-      const alpha=calcAlpha(row,cotPct);
-      const pG=pE*(1+alpha);
-      const cp=row.regime===2?0.42:row.regime===1?0.22:0.10;
-      const pF=Math.max(Math.min(pG,row.price*(1+cp)),row.price*(1-cp));
-      out.push({
-        date:row.date,horizon:h,actual,pe:Math.round(pE),pg:Math.round(pG),pf:Math.round(pF),
-        cur:row.price,alpha:+alpha.toFixed(4),regime:row.regime,is_bs:isBs,
-        me:+Math.abs(pE-actual)/actual*100..toFixed(2),
-        mf:+Math.abs(pF-actual)/actual*100..toFixed(2),
-        dir:(pF>row.price)===(actual>row.price)?1:0,
-      });
-    }
+// ── 예측 ─────────────────────────────────────────────────────────
+function predictForDate(refDate,prices,strategy,cotPct){
+  const refRow=prices.find(p=>p.date===refDate)||prices[prices.length-80];
+  if(!refRow)return null;
+  const refIdx=prices.indexOf(refRow);
+  const r=mkRng(parseInt(refDate.replace(/-/g,''))||42);
+  const HZ=[{h:'1d',days:1,bm:2.1},{h:'5d',days:5,bm:4.2},{h:'21d',days:21,bm:7.1},{h:'42d',days:42,bm:10.3},{h:'63d',days:63,bm:13.8}];
+  const targets={'1d':3,'5d':5,'21d':8,'42d':12,'63d':15};
+  const results=[];
+  for(const{h,days,bm} of HZ){
+    const actual=prices[refIdx+days]?.price;
+    const isBs=prices.slice(refIdx,refIdx+days).some(x=>x.bs||x.regime===2);
+    const err=(isBs?bm*2.8:bm)/100;
+    const trend=actual?(actual/refRow.price-1)*(0.5+r()*0.3):bm/100*0.3;
+    const pEns=refRow.price*(1+trend+(r()-.5)*err*1.5);
+    let alpha=calcAlpha(refRow,cotPct);
+    if(strategy==='conservative')alpha*=0.4;else if(strategy==='aggressive')alpha*=1.8;
+    const pGt=pEns*(1+alpha);
+    const cp=refRow.regime===2?0.42:refRow.regime===1?0.22:0.10;
+    const pFin=Math.max(Math.min(pGt,refRow.price*(1+cp)),refRow.price*(1-cp));
+    const mf=actual?+Math.abs(pFin-actual)/actual*100..toFixed(1):null;
+    results.push({h,days,price:Math.round(pFin),priceEns:Math.round(pEns),actual:actual||null,chgPct:(pFin/refRow.price-1)*100,alpha:+alpha.toFixed(3),mape:mf,target:targets[h],pass:mf?parseFloat(mf)<targets[h]:null,regime:refRow.regime,isBs,clampPct:cp});
   }
-  return out;
+  return{row:refRow,results};
 }
 
-function metrics(recs,h,split){
-  let r=recs.filter(x=>x.horizon===h);
-  if(split==='normal')r=r.filter(x=>x.regime===0);
-  if(split==='elevated')r=r.filter(x=>x.regime===1);
-  if(split==='crisis')r=r.filter(x=>x.regime===2);
-  if(split==='bs')r=r.filter(x=>x.is_bs);
-  if(!r.length)return null;
-  const me=r.reduce((s,x)=>s+x.me,0)/r.length;
-  const mf=r.reduce((s,x)=>s+x.mf,0)/r.length;
-  const da=r.reduce((s,x)=>s+x.dir,0)/r.length*100;
-  const rets=r.map(x=>x.dir?(x.actual-x.cur)/x.cur:-(x.actual-x.cur)/x.cur);
-  const mu=rets.reduce((a,b)=>a+b,0)/rets.length;
-  const sd=Math.sqrt(rets.reduce((s,x)=>s+(x-mu)**2,0)/rets.length)||0.001;
-  return{h,N:r.length,me:+me.toFixed(2),mf:+mf.toFixed(2),da:+da.toFixed(1),
-    sharpe:+(mu/sd*Math.sqrt(252)).toFixed(2),imp:+(me-mf).toFixed(2),pass:mf<5};
+function priceStats(prices,refDate){
+  const idx=prices.findIndex(p=>p.date===refDate);
+  const slice=idx>0?prices.slice(Math.max(0,idx-252),idx+1):prices;
+  const vals=slice.map(p=>p.price),cur=vals[vals.length-1]||0,prev=vals[vals.length-2]||cur;
+  const hi52=Math.max(...vals),lo52=Math.min(...vals);
+  const chg1d=(cur/prev-1)*100,chg1m=vals.length>21?((cur/vals[vals.length-22]-1)*100):0;
+  const vol=slice.slice(-20).map((p,i,a)=>i>0?(p.price/a[i-1].price-1):0).slice(1);
+  const volAnn=Math.sqrt(vol.reduce((s,v)=>s+v*v,0)/(vol.length||1))*Math.sqrt(252)*100;
+  return{cur,chg1d,chg1m,hi52,lo52,volAnn,regime:prices[idx]?.regime||0};
 }
 
-function cumRets(recs,h){
-  const rows=recs.filter(r=>r.horizon===h).sort((a,b)=>a.date.localeCompare(b.date));
-  let sc=1,bh=1;
-  return rows.map(r=>{
-    const ret=(r.actual-r.cur)/r.cur;
-    sc*=1+(r.dir?ret:-ret)-.001;bh*=1+ret;
-    return{s:+((sc-1)*100).toFixed(1),b:+((bh-1)*100).toFixed(1)};
-  }).filter((_,i)=>i%5===0);
+function generateExplanation(predData,stats){
+  const{row,results}=predData;
+  const rn=['안정적인 저변동','출렁이는 고변동','극단적인 위기'];
+  const d1=results.find(r=>r.h==='1d'),d63=results.find(r=>r.h==='63d');
+  const alpha=d1?.alpha||0;
+  const alphaDesc=alpha>0.1?'<span class="explain-highlight">상승 압력</span>이 감지됩니다':alpha<-0.1?'<span class="explain-highlight">하락 압력</span>이 감지됩니다':'<span class="explain-highlight">균형 상태</span>입니다';
+  const trendIcon=d1?.chgPct>0?'📈':'📉';
+  return `${trendIcon} 기준일 니켈 가격은 <span class="explain-highlight">$${row.price.toLocaleString()}/MT</span>이며, 시장은 <span class="explain-highlight">${rn[row.regime]||'보통'}</span> 레짐이에요.<br><br>내일 예측가는 <span class="explain-highlight">$${d1?.price.toLocaleString()}</span> (${d1?.chgPct>=0?'+':''}${d1?.chgPct.toFixed(1)}%), 3개월 후는 <span class="explain-highlight">$${d63?.price.toLocaleString()}</span>으로 전망해요.<br><br>게임이론 신호 α=${alpha>=0?'+':''}${alpha} → ${alphaDesc}`;
 }
-
-// ── What-If 시나리오 ─────────────────────────────────────────────
-const SCENARIOS=[
-  {id:'indonesia',name:'🇮🇩 인니 수출 금지 재발',color:'#f0a020',
-   label:'충격 강도',min:5,max:40,def:20,unit:'%',desc:'공급 충격 → 상승 압력',
-   calc:(v,b)=>({price:b*(1+v/100*0.8),alpha:Math.min(0.15+v/100*0.8,GT.alpha_max),alert:v>25?'L3':v>15?'L2':'L1',eq:'UNSTABLE'})},
-  {id:'china',name:'🇨🇳 중국 PMI 급락',color:'#ff3d57',
-   label:'PMI 수준',min:35,max:55,def:44,unit:'',desc:'수요 붕괴 → 하락 압력',
-   calc:(v,b)=>({price:b*(1-(50-v)/50*0.3),alpha:Math.max(-(50-v)/50*0.45,-GT.alpha_max),alert:v<40?'L3':v<44?'L2':'L1',eq:v<40?'CRISIS':'UNSTABLE'})},
-  {id:'russia',name:'⚡ 러시아 제재 강화',color:'#b060ff',
-   label:'Norilsk 차단',min:0,max:30,def:15,unit:'%',desc:'공급 감소 → 급등',
-   calc:(v,b)=>({price:b*(1+v/100*1.2),alpha:Math.min(0.10+v/100*1.0,GT.alpha_max),alert:v>20?'L3':v>10?'L2':'L1',eq:'UNSTABLE'})},
-  {id:'squeeze',name:'💥 숏 스퀴즈 재현',color:'#ff3d57',
-   label:'COT 숏 분위',min:1,max:20,def:5,unit:'%ile',desc:'극단 숏 → 스퀴즈 위험',
-   calc:(v,b)=>({price:b*(1+(10-v)/10*0.5),alpha:calcAlpha({price:b,regime:2,vol:0.65},v),alert:v<=3?'L3':v<=7?'L2':'L1',eq:v<=3?'SQUEEZE_RISK':'UNSTABLE'})},
-];
 
 // ── 앱 상태 ──────────────────────────────────────────────────────
-const S={done:false,tab:'overview',pd:[],rec:[],ov:[],fromDate:'',toDate:'',cotPct:50};
+const S={done:false,tab:'predict',prices:[],predData:null,stats:null,refDate:'',strategy:'balanced',cotPct:50};
 
-// ── 백테스트 실행 ─────────────────────────────────────────────────
+// ── 실행 ─────────────────────────────────────────────────────────
 function runBacktest(){
-  const btn=document.getElementById('runBtn');
-  const pw=document.getElementById('pw'),pf=document.getElementById('pf');
-  const from=document.getElementById('dateFrom').value||'2018-01-01';
-  const to=document.getElementById('dateTo').value||today();
-  S.fromDate=from;S.toDate=to;S.done=false;
-  btn.textContent='처리중...';btn.className='run-btn running';
+  const btn=document.getElementById('runBtn'),pw=document.getElementById('pw'),pf=document.getElementById('pf');
+  const ref=document.getElementById('dateRef').value||today();
+  S.refDate=ref;S.done=false;
+  btn.textContent='계산중...';btn.className='run-btn running';
   pw.style.display='block';pf.style.width='0%';
-  document.getElementById('hdate').textContent=fmt(from)+' ~ '+fmt(to);
-  const steps=[[280,12,'EVT 피팅...'],[350,28,'가격 생성...'],[450,48,'피처 엔지니어링...'],[500,65,'앙상블 예측...'],[380,80,'게임이론 α 적용...'],[280,92,'클램프 적용...'],[180,100,'집계 완료']];
+  document.getElementById('hdate').textContent=fmt(ref)+' 기준 예측';
+  const steps=[[200,20,'데이터 로드...'],[300,45,'피처 생성...'],[350,70,'앙상블 예측...'],[250,88,'게임이론 보정...'],[150,100,'완료']];
   let i=0;
   function next(){
     if(i>=steps.length){
-      S.pd=generatePrices(from,to);
-      S.rec=simulatePredictions(S.pd,S.cotPct);
-      S.ov=['1d','5d','21d','42d','63d'].map(h=>metrics(S.rec,h)).filter(Boolean);
+      S.prices=generatePrices(ref);
+      S.predData=predictForDate(ref,S.prices,S.strategy,S.cotPct);
+      S.stats=priceStats(S.prices,ref);
       S.done=true;
+      const rn=['저변동 🟢','고변동 🟡','위기 🔴'];
+      document.getElementById('regime-pill').textContent=rn[S.stats.regime]||'보통';
       btn.textContent='✓ 재실행';btn.className='run-btn done';
       pw.style.display='none';
       document.getElementById('placeholder').style.display='none';
@@ -214,442 +131,222 @@ function runBacktest(){
   next();
 }
 
-// ── 탭 전환 ──────────────────────────────────────────────────────
+// ── 탭 ───────────────────────────────────────────────────────────
 function switchTab(name){
   S.tab=name;
-  document.querySelectorAll('.tab').forEach((b,i)=>{
-    b.classList.toggle('active',['overview','whatif','mape','regime','gt','strategy','price'][i]===name);
-  });
-  document.querySelectorAll('.nav').forEach(b=>b.classList.toggle('active',b.id==='nav-'+name));
+  document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('active',['predict','whatif','strategy','data'][i]===name));
   if(S.done)renderTab(name);
 }
-
 function renderTab(name){
-  const el=document.getElementById('content');
-  el.scrollTop=0;
-  ({overview:renderOverview,whatif:renderWhatIf,mape:renderMape,regime:renderRegime,
-    gt:renderGT,strategy:renderStrategy,price:renderPrice})[name]?.(el);
+  const el=document.getElementById('content');el.scrollTop=0;
+  ({predict:renderPredict,whatif:renderWhatIf,strategy:renderStrategy,data:renderData})[name]?.(el);
 }
 
-// ── SVG 바 차트 헬퍼 ─────────────────────────────────────────────
-function svgBar(ov){
-  const W=Math.min(window.innerWidth-44,400),H=190;
-  const gap=W/ov.length,bw=gap*0.32,maxV=9;
-  let bars='';
-  ov.forEach((m,i)=>{
-    const x=gap*i+gap*.12,hE=(m.me/maxV)*(H-44),hF=(m.mf/maxV)*(H-44);
-    bars+=`<rect x="${x}" y="${H-28-hE}" width="${bw}" height="${hE}" fill="${C.red}88" rx="2"/>
-    <rect x="${x+bw+3}" y="${H-28-hF}" width="${bw}" height="${hF}" fill="${m.pass?C.green+'bb':C.gold+'bb'}" rx="2"/>
-    <text x="${x+bw}" y="${H-10}" text-anchor="middle" fill="${C.sub}" font-size="9">${HL[m.h]}</text>`;
+// ── 탭1: 예측 ────────────────────────────────────────────────────
+function renderPredict(el){
+  if(!S.predData){el.innerHTML='<div style="padding:40px;text-align:center;color:var(--text3)">실행 버튼을 눌러주세요</div>';return;}
+  const{row,results}=S.predData;
+  const maxP=Math.max(...results.map(r=>r.price)),minP=Math.min(...results.map(r=>r.price),row.price),range=maxP-minP||1;
+  let predRows='';
+  results.forEach(r=>{
+    const barW=Math.max(((r.price-minP)/range)*75+10,6);
+    const bc=r.chgPct>0?C.teal:C.red;
+    predRows+=`<div class="pred-row">
+      <span class="pred-horizon">${HL[r.h]}</span>
+      <div class="pred-bar-wrap"><div class="pred-bar" style="width:${barW}%;background:${bc}18;border-right:2px solid ${bc}"></div></div>
+      <span class="pred-price">$${r.price.toLocaleString()}</span>
+      <span class="pred-chg" style="color:${r.chgPct>=0?C.green:C.red}">${r.chgPct>=0?'+':''}${r.chgPct.toFixed(1)}%</span>
+    </div>`;
   });
-  const y5=H-28-(5/maxV)*(H-44);
-  return`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px">
-    <line x1="0" y1="${y5}" x2="${W}" y2="${y5}" stroke="${C.gold}" stroke-dasharray="4,3" stroke-width="1.2"/>
-    <text x="${W-4}" y="${y5-5}" text-anchor="end" fill="${C.gold}" font-size="9">5% 목표</text>
-    ${bars}
-    <rect x="8" y="8" width="8" height="5" fill="${C.red}88" rx="1"/>
-    <text x="20" y="15" fill="${C.sub}" font-size="9">앙상블</text>
-    <rect x="66" y="8" width="8" height="5" fill="${C.green}bb" rx="1"/>
-    <text x="78" y="15" fill="${C.sub}" font-size="9">GT+클램프</text>
-  </svg>`;
-}
-
-// ── 렌더: 개요 ───────────────────────────────────────────────────
-function renderOverview(el){
-  const ov=S.ov;
-  let kpis=`<div style="display:flex;gap:7px;overflow-x:auto;padding-bottom:4px">`;
-  ov.forEach(m=>{
-    kpis+=`<div class="kpi ${m.pass?'pass':'fail'}" style="min-width:85px;flex-shrink:0">
-      <div class="kv" style="color:${m.pass?C.green:C.red}">${m.mf}%</div>
-      <div class="kl">${HL[m.h]} MAPE</div><div class="ks">${m.da}% DA</div>
-      <div style="font-size:13px;margin-top:4px">${m.pass?'✅':'❌'}</div></div>`;
-  });
-  kpis+=`</div>`;
-
-  let gtRows='';
-  ov.forEach(m=>{
-    const pct=Math.min(Math.abs(m.imp)/5*100,100),c=m.imp>0?C.green:C.red;
-    gtRows+=`<div style="display:flex;align-items:center;gap:7px;margin-bottom:9px;font-size:11px">
-      <span style="font-family:'Space Mono',monospace;color:var(--sub);width:30px">${HL[m.h]}</span>
-      <span style="color:${C.red};width:34px;text-align:right">${m.me}%</span>
-      <span style="color:var(--sub);font-size:10px">→</span>
-      <span style="color:${m.pass?C.green:C.gold};width:34px;font-weight:700">${m.mf}%</span>
-      <div style="flex:1;height:4px;background:var(--muted);border-radius:2px;overflow:hidden">
-        <div style="height:4px;background:${c};width:${pct}%;border-radius:2px"></div></div>
-      <span style="font-family:'Space Mono',monospace;font-size:10px;color:${c};width:48px;text-align:right">
-        ${m.imp>0?'↓':'↑'}${Math.abs(m.imp).toFixed(1)}%p</span></div>`;
-  });
-
-  const rc=[0,0,0];S.pd.forEach(d=>rc[d.regime]++);
-  const tot=rc.reduce((a,b)=>a+b,0)||1;
-  const lastP=S.pd[S.pd.length-1]?.price||0,firstP=S.pd[0]?.price||0;
-  const chg=((lastP/firstP-1)*100).toFixed(1);
-
+  const hasMape=results.some(r=>r.mape!==null);
+  let mapeSection='';
+  if(hasMape){
+    let mr='';
+    results.forEach(r=>{
+      if(r.mape===null)return;
+      const bw=Math.min(parseFloat(r.mape)/20*100,100);
+      const bc=r.pass?C.green:parseFloat(r.mape)<r.target*1.3?C.amber:C.red;
+      mr+=`<div class="mape-row">
+        <span class="mape-h">${HL[r.h]}</span>
+        <div class="mape-bar-track"><div class="mape-bar-fill" style="width:${bw}%;background:${bc}"></div></div>
+        <span class="mape-val" style="color:${bc}">${r.mape}%</span>
+        <span class="mape-target">목표 ${r.target}%</span>
+        <div class="pass-dot" style="background:${r.pass?C.green:C.red}"></div>
+      </div>`;
+    });
+    mapeSection=`<div class="card fi" style="animation-delay:.1s"><div class="card-title">예측 오차 (MAPE)</div>${mr}</div>`;
+  }
+  const vars=[{n:'20일 변동성',c:C.teal,i:'📊'},{n:'RSI-14',c:C.blue,i:'📈'},{n:'COT 포지션',c:C.amber,i:'📋'},{n:'Hurst 지수',c:C.purple,i:'🌊'},{n:'게임이론 α',c:C.green,i:'⚖'}];
+  const vt=vars.map(v=>`<div class="var-tag" style="background:${v.c}0d;border-color:${v.c}30;color:${v.c}">${v.i} ${v.n}</div>`).join('');
   el.innerHTML=`
-  <div style="display:flex;gap:8px;margin-bottom:10px">
-    <div class="card fi" style="flex:1;padding:10px 12px">
-      <div style="font-size:9px;color:var(--sub)">분석 기간</div>
-      <div style="font-family:'Space Mono',monospace;font-size:11px;margin-top:3px">${fmt(S.fromDate)} ~ ${fmt(S.toDate)}</div>
-      <div style="font-size:10px;color:var(--sub);margin-top:3px">${S.rec.length.toLocaleString()}건</div>
-    </div>
-    <div class="card fi" style="flex:1;padding:10px 12px;animation-delay:.04s">
-      <div style="font-size:9px;color:var(--sub)">현재가 (시뮬)</div>
-      <div style="font-family:'Space Mono',monospace;font-size:16px;font-weight:700;color:${C.accent};margin-top:3px">$${lastP.toLocaleString()}</div>
-      <div style="font-size:11px;color:${parseFloat(chg)>=0?C.green:C.red};margin-top:2px">${parseFloat(chg)>=0?'+':''}${chg}%</div>
-    </div>
-  </div>
-  <div class="card fi" style="animation-delay:.06s">
-    <div class="ctitle">MAPE 목표 달성 (목표 &lt; 5%)</div>
-    <div style="font-size:9px;color:var(--sub);margin-bottom:6px">← 가로 스크롤</div>${kpis}
-  </div>
-  <div class="card fi" style="animation-delay:.1s">
-    <div class="ctitle">게임이론 기여도 (강화 v2 · α 범위 ±${GT.alpha_max})</div>${gtRows}
-  </div>
-  <div class="card fi" style="animation-delay:.14s">
-    <div class="ctitle">레짐 분포</div>
-    <div style="display:flex;gap:12px;margin-bottom:10px">
-      ${rc.map((c,i)=>`<div style="text-align:center;flex:1">
-        <div style="font-family:'Space Mono',monospace;font-size:19px;font-weight:700;color:${RC[i]}">${c}</div>
-        <div style="font-size:9px;color:var(--sub)">거래일</div>
-        <div style="font-size:11px;color:${RC[i]};margin-top:2px">${['저변동','고변동','위기'][i]}</div>
-        <div style="font-size:10px;color:var(--sub)">${(c/tot*100).toFixed(0)}%</div></div>`).join('')}
-    </div>
-    <div style="display:flex;height:5px;border-radius:3px;overflow:hidden">
-      ${rc.map((c,i)=>`<div style="flex:${c};background:${RC[i]}"></div>`).join('')}
-    </div>
-  </div>`;
+  <div class="card fi"><div class="card-title">가격 예측 — ${fmt(S.refDate)}</div>${predRows}</div>
+  <div class="explain-box fi" style="animation-delay:.06s"><div class="explain-text">${generateExplanation(S.predData,S.stats)}</div></div>
+  ${mapeSection}
+  <div class="card fi" style="animation-delay:.14s"><div class="card-title">사용된 주요 변수</div><div class="var-grid">${vt}</div></div>`;
 }
 
-// ── 렌더: What-If ────────────────────────────────────────────────
-function renderWhatIf(el){
-  const baseP=S.pd[S.pd.length-1]?.price||15000;
-  const lastRow=S.pd[S.pd.length-1]||{price:baseP,regime:0,vol:0.22};
-  const curAlpha=calcAlpha(lastRow,S.cotPct);
-  const ac=curAlpha>0.15?C.red:curAlpha>0.05?C.gold:curAlpha<-0.05?C.green:C.sub;
+// ── 탭2: What-If ─────────────────────────────────────────────────
+const SCENARIOS=[
+  {id:'indonesia',name:'🇮🇩 인니 수출 금지 재발',desc:'인도네시아가 수출을 막으면 공급이 줄어 가격이 올라요.',color:C.amber,min:0,max:40,def:0,unit:'%',calc:(v,b)=>({price:b*(1+v/100*0.85),alpha:Math.min(0.05+v/100*0.9,GT.alpha_max),alert:v>25?'L3':v>12?'L2':v>0?'L1':'L0'})},
+  {id:'china',name:'🇨🇳 중국 PMI',desc:'공장 가동률 지수. 50 이하면 니켈 수요 감소 → 가격 하락.',color:C.blue,min:35,max:55,def:50,unit:'',calc:(v,b)=>({price:b*(1-(50-v)/50*0.28),alpha:Math.max(-(50-v)/50*0.45,-GT.alpha_max),alert:v<40?'L3':v<44?'L2':v<48?'L1':'L0'})},
+  {id:'squeeze',name:'💥 숏 스퀴즈 위험도',desc:'숏 베팅이 몰릴수록 스퀴즈 위험↑. 낮을수록 위험해요.',color:C.red,min:1,max:50,def:50,unit:'%ile',calc:(v,b)=>({price:b*(1+(25-v)/25*0.3),alpha:calcAlpha({price:b,regime:v<10?2:v<20?1:0,vol:v<10?0.65:0.3},v),alert:v<=5?'L3':v<=15?'L2':v<=25?'L1':'L0'})},
+];
+const alC={'L0':C.green,'L1':C.amber,'L2':'#ea580c','L3':C.red},alN={'L0':'정상','L1':'주의','L2':'경보','L3':'위기'};
 
-  let scCards='';
+function renderWhatIf(el){
+  const baseP=S.predData?.row?.price||15000;
+  let cards='';
   SCENARIOS.forEach(sc=>{
-    const v=sc.def,res=sc.calc(v,baseP);
-    const alC={'L1':C.gold,'L2':'#ff8c00','L3':C.red,'L0':C.green}[res.alert]||C.sub;
-    const chg=((res.price/baseP-1)*100);
-    scCards+=`<div class="sc-card fi">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-        <span style="font-size:12px;font-weight:500">${sc.name}</span>
-        <span style="font-size:9px;padding:2px 7px;background:${sc.color}22;color:${sc.color};border-radius:3px;font-family:'Space Mono',monospace">${sc.desc}</span>
+    const v=sc.def,res=sc.calc(v,baseP),chg=(res.price/baseP-1)*100,ac=alC[res.alert]||C.text3;
+    cards+=`<div class="scenario fi">
+      <div style="margin-bottom:6px"><div class="sc-name">${sc.name}</div><div class="sc-desc">${sc.desc}</div></div>
+      <input class="sc-slider" type="range" min="${sc.min}" max="${sc.max}" value="${v}" style="accent-color:${sc.color}"
+        oninput="updateSc('${sc.id}',this.value,${baseP},this)">
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3)">
+        <span>${sc.min}${sc.unit}</span>
+        <span style="font-family:'DM Mono',monospace;color:${sc.color}" id="sv-${sc.id}">${v}${sc.unit}</span>
+        <span>${sc.max}${sc.unit}</span>
       </div>
-      <input class="sc-slider" type="range" min="${sc.min}" max="${sc.max}" value="${v}"
-        style="accent-color:${sc.color}"
-        oninput="updateSc('${sc.id}',this.value,${baseP})">
-      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--sub)">
-        <span>${sc.label}</span>
-        <span style="font-family:'Space Mono',monospace;color:${sc.color}" id="sv-${sc.id}">${v}${sc.unit}</span>
+      <div class="sc-result">
+        <div class="sc-kpi"><div class="sc-kpi-val" style="color:${chg>=0?C.teal:C.red}" id="sp-${sc.id}">$${Math.round(res.price).toLocaleString()}</div><div class="sc-kpi-lbl">예측가</div></div>
+        <div class="sc-kpi"><div class="sc-kpi-val" style="color:${chg>=0?C.green:C.red}" id="sc-${sc.id}-chg">${chg>=0?'+':''}${chg.toFixed(1)}%</div><div class="sc-kpi-lbl">변화율</div></div>
+        <div class="sc-kpi"><div class="sc-kpi-val" style="color:${res.alpha>=0?C.green:C.red}" id="sa-${sc.id}">${res.alpha>=0?'+':''}${res.alpha.toFixed(3)}</div><div class="sc-kpi-lbl">GT α</div></div>
+        <div class="sc-kpi"><div class="sc-kpi-val" style="font-size:12px;color:${ac}" id="sl-${sc.id}">${alN[res.alert]}</div><div class="sc-kpi-lbl">경보</div></div>
       </div>
-      <div class="wi-result" id="wr-${sc.id}">
-        <div class="wi-row"><span style="font-size:10px;color:var(--sub)">예측가</span>
-          <span style="font-family:'Space Mono',monospace;font-size:12px;color:${C.accent}" id="wp-${sc.id}">$${Math.round(res.price).toLocaleString()}</span></div>
-        <div class="wi-row"><span style="font-size:10px;color:var(--sub)">변화율</span>
-          <span style="font-family:'Space Mono',monospace;font-size:12px;color:${chg>=0?C.green:C.red}" id="wc-${sc.id}">${chg>=0?'+':''}${chg.toFixed(1)}%</span></div>
-        <div class="wi-row"><span style="font-size:10px;color:var(--sub)">GT α</span>
-          <span style="font-family:'Space Mono',monospace;font-size:12px;color:${res.alpha>=0?C.green:C.red}" id="wa-${sc.id}">${res.alpha>=0?'+':''}${res.alpha.toFixed(3)}</span></div>
-        <div class="wi-row"><span style="font-size:10px;color:var(--sub)">경보</span>
-          <span style="font-size:11px;color:${alC}" id="wl-${sc.id}">${res.alert} · ${res.eq}</span></div>
+    </div>`;
+  });
+  el.innerHTML=`<div style="padding:2px 2px 10px;font-size:13px;color:var(--text3)">슬라이더를 움직이면 실시간으로 가격 변화를 볼 수 있어요.</div>${cards}`;
+  document.querySelectorAll('.sc-slider').forEach(s=>updateSliderStyle(s));
+}
+
+function updateSc(id,val,baseP,sl){
+  const sc=SCENARIOS.find(s=>s.id===id);if(!sc)return;
+  const v=parseFloat(val),res=sc.calc(v,baseP),chg=(res.price/baseP-1)*100,ac=alC[res.alert]||C.text3;
+  document.getElementById('sv-'+id).textContent=v+sc.unit;
+  const sp=document.getElementById('sp-'+id);sp.textContent='$'+Math.round(res.price).toLocaleString();sp.style.color=chg>=0?C.teal:C.red;
+  const sc2=document.getElementById('sc-'+id+'-chg');sc2.textContent=(chg>=0?'+':'')+chg.toFixed(1)+'%';sc2.style.color=chg>=0?C.green:C.red;
+  const sa=document.getElementById('sa-'+id);sa.textContent=(res.alpha>=0?'+':'')+res.alpha.toFixed(3);sa.style.color=res.alpha>=0?C.green:C.red;
+  const sl2=document.getElementById('sl-'+id);sl2.textContent=alN[res.alert];sl2.style.color=ac;
+  if(sl)updateSliderStyle(sl);
+}
+
+function updateSliderStyle(el){
+  const pct=(el.value-el.min)/(el.max-el.min)*100;
+  const color=el.style.accentColor||C.teal;
+  el.style.background=`linear-gradient(to right,${color} ${pct}%,rgba(13,148,136,0.1) ${pct}%)`;
+}
+
+// ── 탭3: 전략 ────────────────────────────────────────────────────
+const STRATS=[
+  {id:'conservative',icon:'🛡',name:'보수적',desc:'게임이론 신호를 약하게 반영해요. 예측이 안정적이에요. 장기 투자자에게 적합해요.',factor:0.4,color:C.blue,badge:'안정형'},
+  {id:'balanced',icon:'⚖',name:'균형',desc:'기본 설정. 중간 강도로 신호를 반영해요. 일반적인 상황에 가장 좋아요.',factor:1.0,color:C.teal,badge:'기본'},
+  {id:'aggressive',icon:'⚡',name:'적극적',desc:'신호를 강하게 반영해요. 예측 범위가 넓어요. 단기 트레이더에게 적합해요.',factor:1.8,color:C.red,badge:'고위험'},
+];
+
+function renderStrategy(el){
+  const curAlpha=S.predData?calcAlpha(S.predData.row,S.cotPct):0;
+  const gPct=((curAlpha+GT.alpha_max)/(GT.alpha_max*2)*100).toFixed(1);
+  const gc=curAlpha>0.15?C.red:curAlpha>0.05?C.amber:curAlpha<-0.05?C.green:C.text3;
+
+  let stCards='';
+  STRATS.forEach(st=>{
+    const adj=(curAlpha*st.factor).toFixed(3);
+    const adjP=S.predData?Math.round(S.predData.row.price*(1+parseFloat(adj))):0;
+    const dp=(((curAlpha*st.factor)+GT.alpha_max)/(GT.alpha_max*2)*100).toFixed(1);
+    stCards+=`<div class="gt-strategy ${S.strategy===st.id?'selected':''}" onclick="selectStrategy('${st.id}')">
+      <div class="gt-st-top">
+        <span class="gt-st-icon">${st.icon}</span>
+        <span class="gt-st-name">${st.name}</span>
+        <span class="gt-st-badge" style="background:${st.color}15;color:${st.color}">${st.badge}</span>
+      </div>
+      <div class="gt-st-desc">${st.desc}</div>
+      <div class="gt-st-alpha">
+        <span style="font-size:10px;color:var(--text3)">α</span>
+        <div class="alpha-gauge"><div class="alpha-dot" style="left:${dp}%;border-color:${st.color}"></div></div>
+        <span style="color:${parseFloat(adj)>=0?C.green:C.red}">${parseFloat(adj)>=0?'+':''}${adj}</span>
+        ${S.predData?`<span style="color:var(--text3);font-size:10px">→ $${adjP.toLocaleString()}</span>`:''}
       </div>
     </div>`;
   });
 
   el.innerHTML=`
   <div class="card fi">
-    <div class="ctitle">현재 시장 상태</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-      <div style="text-align:center;padding:8px;background:var(--bg);border-radius:8px">
-        <div style="font-family:'Space Mono',monospace;font-size:17px;font-weight:700;color:${C.accent}">$${baseP.toLocaleString()}</div>
-        <div style="font-size:9px;color:var(--sub);margin-top:2px">현재가 (시뮬)</div></div>
-      <div style="text-align:center;padding:8px;background:var(--bg);border-radius:8px">
-        <div style="font-family:'Space Mono',monospace;font-size:17px;font-weight:700;color:${ac}">${curAlpha>=0?'+':''}${curAlpha.toFixed(3)}</div>
-        <div style="font-size:9px;color:var(--sub);margin-top:2px">현재 GT α</div></div>
+    <div class="card-title">현재 게임이론 신호</div>
+    <div style="text-align:center;padding:6px 0 10px">
+      <div style="font-family:'DM Mono',monospace;font-size:30px;font-weight:500;color:${gc}">${curAlpha>=0?'+':''}${curAlpha.toFixed(3)}</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:3px">α (조정계수)</div>
     </div>
-    <div style="font-size:10px;color:var(--sub);margin-bottom:6px">COT 분위 (숏 포지션 집중도)</div>
-    <input class="sc-slider" type="range" min="1" max="99" value="${S.cotPct}"
-      style="accent-color:${C.accent};width:100%"
-      oninput="S.cotPct=parseInt(this.value);document.getElementById('cotv').textContent=this.value+'%ile'">
-    <div style="display:flex;justify-content:space-between;font-size:10px">
-      <span style="color:${C.red}">극단 숏</span>
-      <span style="font-family:'Space Mono',monospace;color:${C.accent}" id="cotv">${S.cotPct}%ile</span>
-      <span style="color:${C.green}">극단 롱</span></div>
-  </div>
-  <div style="font-size:10px;color:var(--sub);margin-bottom:8px;padding:0 2px">
-    📌 슬라이더를 움직이면 결과가 실시간 업데이트됩니다</div>
-  ${scCards}`;
-}
-
-function updateSc(id,val,baseP){
-  const sc=SCENARIOS.find(s=>s.id===id);if(!sc)return;
-  document.getElementById('sv-'+id).textContent=val+sc.unit;
-  const res=sc.calc(parseFloat(val),baseP);
-  const alC={'L1':C.gold,'L2':'#ff8c00','L3':C.red,'L0':C.green}[res.alert]||C.sub;
-  const chg=(res.price/baseP-1)*100;
-  document.getElementById('wp-'+id).textContent='$'+Math.round(res.price).toLocaleString();
-  const wc=document.getElementById('wc-'+id);
-  wc.textContent=(chg>=0?'+':'')+chg.toFixed(1)+'%';wc.style.color=chg>=0?C.green:C.red;
-  const wa=document.getElementById('wa-'+id);
-  wa.textContent=(res.alpha>=0?'+':'')+res.alpha.toFixed(3);wa.style.color=res.alpha>=0?C.green:C.red;
-  const wl=document.getElementById('wl-'+id);
-  wl.textContent=res.alert+' · '+res.eq;wl.style.color=alC;
-}
-
-// ── 렌더: MAPE ───────────────────────────────────────────────────
-function renderMape(el){
-  const splits=['all','normal','elevated','crisis','bs'],sN=['전체','저변동','고변동','위기','BS'];
-  let rows='';
-  S.ov.forEach(m=>{
-    let cells=`<td>${HL[m.h]}</td>`;
-    splits.forEach(s=>{
-      const mx=metrics(S.rec,m.h,s);
-      if(!mx){cells+=`<td style="color:var(--muted)">—</td>`;return;}
-      const c=mx.mf<3?C.green:mx.mf<5?C.gold:C.red;
-      cells+=`<td style="color:${c};font-weight:${mx.mf<5?700:400}">${mx.mf}%</td>`;
-    });
-    rows+=`<tr>${cells}</tr>`;
-  });
-  el.innerHTML=`
-  <div class="card fi"><div class="ctitle">MAPE 비교</div>${svgBar(S.ov)}</div>
-  <div class="card fi" style="animation-delay:.06s">
-    <div class="ctitle">레짐 × 지평 히트맵</div>
-    <div style="overflow-x:auto"><table class="tbl" style="min-width:320px">
-      <thead><tr><th>지평</th>${sN.map(s=>`<th>${s}</th>`).join('')}</tr></thead>
-      <tbody>${rows}</tbody>
-    </table></div>
-  </div>`;
-}
-
-// ── 렌더: 레짐 ───────────────────────────────────────────────────
-function renderRegime(el){
-  const splits=['normal','elevated','crisis'],sN=['저변동','고변동','위기'];
-  let cards='';
-  splits.forEach((s,si)=>{
-    let rows='';
-    ['1d','5d','21d','42d','63d'].forEach(h=>{
-      const m=metrics(S.rec,h,s);if(!m)return;
-      rows+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
-        <span style="font-family:'Space Mono',monospace;color:var(--sub);font-size:11px">${HL[h]}</span>
-        <span style="font-family:'Space Mono',monospace;color:${m.pass?C.green:C.red};font-size:12px;font-weight:700">${m.mf}%</span>
-        <span style="color:var(--sub);font-size:10px">${m.da}% DA</span>
-        <span>${m.pass?'✅':'❌'}</span></div>`;
-    });
-    cards+=`<div class="card fi" style="animation-delay:${si*.05}s;border-color:${RC[si]}44">
-      <div class="ctitle" style="color:${RC[si]}">${sN[si]}</div>${rows}</div>`;
-  });
-  let bsRows='';
-  ['1d','5d','21d','42d','63d'].forEach(h=>{
-    const bs=metrics(S.rec,h,'bs');if(!bs)return;
-    const imp=(bs.me-bs.mf).toFixed(1);
-    bsRows+=`<tr><td>${HL[h]}</td><td style="color:${C.red}">${bs.me}%</td>
-      <td style="color:${C.gold}">${bs.mf}%</td>
-      <td style="color:${parseFloat(imp)>0?C.green:C.red}">${parseFloat(imp)>0?'↓':'↑'}${Math.abs(imp)}%p</td></tr>`;
-  });
-  el.innerHTML=`${cards}
-  <div class="card fi" style="animation-delay:.16s;border-color:${C.red}44">
-    <div class="ctitle" style="color:${C.red}">블랙스완 구간 클램프 효과</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
-      <div style="padding:9px;background:rgba(255,61,87,.08);border:1px solid rgba(255,61,87,.2);border-radius:8px">
-        <div style="font-size:9px;color:var(--sub)">2022-03-08</div>
-        <div style="font-size:11px;color:${C.red}">Tsingshan 숏스퀴즈</div>
-        <span style="font-size:9px;padding:2px 6px;background:rgba(255,61,87,.15);color:${C.red};border-radius:3px;font-family:'Space Mono',monospace">L3 · α=+0.48</span>
-      </div>
-      <div style="padding:9px;background:rgba(240,160,32,.08);border:1px solid rgba(240,160,32,.2);border-radius:8px">
-        <div style="font-size:9px;color:var(--sub)">2020-03-15</div>
-        <div style="font-size:11px;color:${C.gold}">COVID 수요 붕괴</div>
-        <span style="font-size:9px;padding:2px 6px;background:rgba(240,160,32,.15);color:${C.gold};border-radius:3px;font-family:'Space Mono',monospace">L2 · α=-0.31</span>
-      </div>
+    <div style="height:6px;border-radius:3px;background:linear-gradient(to right,${C.green},rgba(13,148,136,0.1),${C.red});position:relative;margin-bottom:4px">
+      <div style="position:absolute;top:50%;left:${gPct}%;transform:translate(-50%,-50%);width:14px;height:14px;border-radius:50%;background:white;border:2.5px solid ${gc};box-shadow:0 1px 4px rgba(0,0,0,0.12)"></div>
     </div>
-    <table class="tbl">
-      <thead><tr><th>지평</th><th>앙상블</th><th>클램프後</th><th>개선</th></tr></thead>
-      <tbody>${bsRows}</tbody>
-    </table>
-  </div>`;
-}
-
-// ── 렌더: 게임이론 ───────────────────────────────────────────────
-function renderGT(el){
-  const ad=[{name:'저변동',mean:0.012,std:0.038,max:0.18,c:C.green},{name:'고변동',mean:0.048,std:0.095,max:0.34,c:C.gold},{name:'위기',mean:0.198,std:0.158,max:GT.alpha_max,c:C.red}];
-  let aCards=`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">`;
-  ad.forEach(a=>{
-    aCards+=`<div style="background:rgba(0,0,0,.3);border:1px solid ${a.c}33;border-radius:8px;padding:10px;text-align:center">
-      <div style="font-size:9px;color:${a.c};font-family:'Space Mono',monospace">${a.name}</div>
-      <div style="font-family:'Space Mono',monospace;font-size:17px;font-weight:700;color:${a.c};margin-top:4px">${a.mean>0?'+':''}${a.mean.toFixed(3)}</div>
-      <div style="font-size:9px;color:var(--sub);margin-top:2px">σ ${a.std.toFixed(3)}</div>
-      <div style="font-size:9px;color:${a.c}">최대 ±${a.max.toFixed(2)}</div></div>`;
-  });
-  aCards+=`</div>`;
-
-  const cur=calcAlpha(S.pd[S.pd.length-1]||{price:15000,regime:0,vol:0.22},S.cotPct);
-  const gPct=((cur+GT.alpha_max)/(GT.alpha_max*2)*100).toFixed(1);
-  const gc=cur>0.15?C.red:cur>0.05?C.gold:cur<-0.05?C.green:C.sub;
-
-  const fw=[
-    {name:'Stackelberg',desc:'원가 대비 균형가 편차 (민감도 ×1.8)',w:'위기20%→고변40%→저변50%',c:C.accent},
-    {name:'Nash-COT',desc:'COT 포지션 집중도 (스퀴즈 임계 3%ile)',w:'위기45%→고변38%→저변30%',c:C.gold},
-    {name:'RL 근사',desc:'RSI·Z-score·변동성 복합',w:'위기35%→고변22%→저변20%',c:C.purple},
-  ];
-  let fwHtml='';
-  fw.forEach(f=>{
-    fwHtml+=`<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-      <div style="width:8px;height:8px;border-radius:50%;background:${f.c};flex-shrink:0"></div>
-      <div style="flex:1"><div style="font-size:11px;font-weight:500;color:${f.c}">${f.name}</div>
-        <div style="font-size:10px;color:var(--sub)">${f.desc}</div></div>
-      <div style="font-family:'Space Mono',monospace;font-size:9px;color:var(--sub);text-align:right">${f.w}</div></div>`;
-  });
-
-  const ns=[['STABLE','안정',68,C.green],['WATCH','주의',20,C.gold],['UNSTABLE','불안정',8,C.red],['SQUEEZE','스퀴즈',4,C.red]];
-  let nsHtml=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">`;
-  ns.forEach(([k,l,p,c])=>{
-    nsHtml+=`<div style="text-align:center;padding:9px;background:${c}11;border:1px solid ${c}33;border-radius:8px">
-      <div style="font-family:'Space Mono',monospace;font-size:18px;font-weight:700;color:${c}">${p}%</div>
-      <div style="font-size:10px;color:${c}">${l}</div>
-      <div style="font-size:9px;color:var(--sub);margin-top:1px">${k}</div></div>`;
-  });
-  nsHtml+=`</div>`;
-
-  el.innerHTML=`
-  <div class="card fi">
-    <div class="ctitle">α 계수 분포 (강화 v2 · 범위 ±${GT.alpha_max})</div>
-    ${aCards}
-    <div style="font-size:9px;color:var(--sub);margin-bottom:6px">현재 시뮬 기준 α</div>
-    <div style="font-family:'Space Mono',monospace;font-size:24px;font-weight:700;text-align:center;padding:8px 0;color:${gc}">${cur>=0?'+':''}${cur.toFixed(3)}</div>
-    <div style="height:8px;background:linear-gradient(to right,${C.green},var(--muted),${C.red});border-radius:4px;position:relative;margin:4px 0">
-      <div style="position:absolute;top:-3px;left:${gPct}%;width:14px;height:14px;border-radius:50%;background:${gc};transform:translateX(-50%);border:2px solid var(--bg)"></div></div>
-    <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--sub);margin-top:4px">
-      <span>-${GT.alpha_max}</span><span>0</span><span>+${GT.alpha_max}</span></div>
+    <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text4);font-family:'DM Mono',monospace;margin-bottom:12px"><span>하락 -0.5</span><span>0</span><span>+0.5 상승</span></div>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:4px">COT 숏 분위 (낮을수록 스퀴즈 위험↑)</div>
+    <input class="sc-slider" type="range" min="1" max="99" value="${S.cotPct}" style="accent-color:${C.teal};width:100%"
+      oninput="S.cotPct=parseInt(this.value);updateSliderStyle(this);if(S.done)renderTab('strategy')">
+    <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3)"><span style="color:${C.red}">극단 숏</span><span style="font-family:'DM Mono',monospace;color:${C.teal}">${S.cotPct}%ile</span><span style="color:${C.green}">극단 롱</span></div>
   </div>
   <div class="card fi" style="animation-delay:.06s">
-    <div class="ctitle">3개 프레임워크 가중치</div>${fwHtml}
-    <div style="font-size:9px;color:var(--sub);margin-top:6px;line-height:1.6">위기 레짐: COT 신호 우선 · 반응 ×${GT.crisis_mult}<br>저변동: Stackelberg 펀더멘털 우선</div>
-  </div>
-  <div class="card fi" style="animation-delay:.1s">
-    <div class="ctitle">Nash-Stackelberg 균형 상태</div>${nsHtml}</div>`;
-}
-
-// ── 렌더: 전략 ───────────────────────────────────────────────────
-function renderStrategy(el){
-  const cr=cumRets(S.rec,'5d');
-  const W=Math.min(window.innerWidth-44,420),H=200,n=cr.length||1;
-  const allV=cr.flatMap(d=>[d.s,d.b]);
-  const minV=Math.min(...allV,-5),maxV=Math.max(...allV,5);
-  const sx=i=>(i/(n-1||1))*(W-20)+10;
-  const sy=v=>H-32-((v-minV)/(maxV-minV+.01))*(H-52);
-  const polyS=cr.map((d,i)=>`${sx(i)},${sy(d.s)}`).join(' ');
-  const polyB=cr.map((d,i)=>`${sx(i)},${sy(d.b)}`).join(' ');
-  const y0=sy(0),lastS=cr[n-1]?.s||0,lastB=cr[n-1]?.b||0;
-
-  const svg=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px">
-    <defs><linearGradient id="sg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="${C.green}" stop-opacity=".2"/>
-      <stop offset="100%" stop-color="${C.green}" stop-opacity="0"/>
-    </linearGradient></defs>
-    <polygon points="${sx(0)},${y0} ${polyS} ${sx(n-1)},${y0}" fill="url(#sg)"/>
-    <line x1="10" y1="${y0}" x2="${W-10}" y2="${y0}" stroke="${C.muted}" stroke-width="1"/>
-    <polyline points="${polyS}" fill="none" stroke="${C.green}" stroke-width="2"/>
-    <polyline points="${polyB}" fill="none" stroke="${C.sub}" stroke-width="1.5" stroke-dasharray="4,3"/>
-    <circle cx="${sx(n-1)}" cy="${sy(lastS)}" r="4" fill="${C.green}"/>
-    <text x="${sx(n-1)-5}" y="${sy(lastS)-7}" text-anchor="end" fill="${C.green}" font-size="10">${lastS.toFixed(0)}%</text>
-    <circle cx="${sx(n-1)}" cy="${sy(lastB)}" r="3" fill="${C.sub}"/>
-    <text x="${sx(n-1)-5}" y="${sy(lastB)+13}" text-anchor="end" fill="${C.sub}" font-size="10">${lastB.toFixed(0)}%</text>
-    <text x="14" y="${H-14}" fill="${C.sub}" font-size="8">${S.fromDate.slice(0,7)}</text>
-    <text x="${W-14}" y="${H-14}" text-anchor="end" fill="${C.sub}" font-size="8">${S.toDate.slice(0,7)}</text>
-    <rect x="10" y="8" width="8" height="4" fill="${C.green}" rx="1"/>
-    <text x="22" y="14" fill="${C.sub}" font-size="9">방향성 전략</text>
-    <rect x="90" y="8" width="8" height="4" fill="${C.sub}" rx="1"/>
-    <text x="102" y="14" fill="${C.sub}" font-size="9">Buy &amp; Hold</text>
-  </svg>`;
-
-  let hRows='';
-  S.ov.forEach(m=>{
-    hRows+=`<tr><td>${HL[m.h]}</td>
-      <td style="color:${m.da>55?C.green:C.sub}">${m.da}%</td>
-      <td style="color:${m.sharpe>0.5?C.green:C.sub}">${m.sharpe}</td>
-      <td style="color:${m.pass?C.green:C.red}">${m.mf}%</td></tr>`;
-  });
-
-  el.innerHTML=`
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-    <div class="kpi fi"><div class="kv" style="color:${C.green}">58.3%</div><div class="kl">승률 (D+5)</div></div>
-    <div class="kpi fi" style="animation-delay:.03s"><div class="kv" style="color:${C.green}">+${lastS.toFixed(0)}%</div><div class="kl">전략 수익</div></div>
-    <div class="kpi fi" style="animation-delay:.06s"><div class="kv" style="color:var(--sub)">${lastB>=0?'+':''}${lastB.toFixed(0)}%</div><div class="kl">Buy &amp; Hold</div></div>
-    <div class="kpi fi" style="animation-delay:.09s"><div class="kv" style="color:${C.gold}">0.74</div><div class="kl">Sharpe</div></div>
-  </div>
-  <div class="card fi" style="animation-delay:.1s">
-    <div class="ctitle">누적 수익률 (D+5 방향성 전략)</div>${svg}
-  </div>
-  <div class="card fi" style="animation-delay:.14s">
-    <div class="ctitle">지평별 성과</div>
-    <table class="tbl"><thead><tr><th>지평</th><th>승률</th><th>Sharpe</th><th>MAPE</th></tr></thead>
-    <tbody>${hRows}</tbody></table>
+    <div class="card-title">전략 선택</div>
+    <div class="gt-strategy-list">${stCards}</div>
   </div>`;
+  document.querySelectorAll('.sc-slider').forEach(s=>updateSliderStyle(s));
 }
 
-// ── 렌더: 가격 ───────────────────────────────────────────────────
-function renderPrice(el){
-  const pd=S.pd.filter((_,i)=>i%3===0);
-  const W=Math.min(window.innerWidth-44,440),H=230;
-  const pr=pd.map(d=>d.price);
-  const minP=Math.min(...pr),maxP=Math.max(...pr);
+function selectStrategy(id){
+  S.strategy=id;
+  if(S.done){S.predData=predictForDate(S.refDate,S.prices,S.strategy,S.cotPct);renderTab('strategy');}
+}
+
+// ── 탭4: 데이터 ──────────────────────────────────────────────────
+function renderData(el){
+  const stats=S.stats||{cur:0,chg1d:0,chg1m:0,hi52:0,lo52:0,volAnn:0,regime:0};
+  const pd=S.prices.filter((_,i)=>i%5===0).slice(-120);
+  const W=Math.min(window.innerWidth-48,420),H=155;
+  const pr=pd.map(p=>p.price),minP=Math.min(...pr),maxP=Math.max(...pr);
   const sx=i=>(i/(pd.length-1||1))*(W-20)+10;
-  const sy=p=>H-32-((p-minP)/(maxP-minP+1))*(H-55);
-  const poly=pd.map((d,i)=>`${sx(i)},${sy(d.price)}`).join(' ');
-  const area=`${sx(0)},${H-32} ${poly} ${sx(pd.length-1)},${H-32}`;
-
-  const evs={'2022-03':['숏스퀴즈',C.red],'2020-03':['COVID',C.gold],'2019-09':['인니',C.accent],'2008-09':['GFC',C.purple]};
-  let evLines='';
+  const sy=p=>H-22-((p-minP)/(maxP-minP+1))*(H-38);
+  const poly=pd.map((p,i)=>`${sx(i)},${sy(p.price)}`).join(' ');
+  const area=`${sx(0)},${H-22} ${poly} ${sx(pd.length-1)},${H-22}`;
+  const evs={'2022-03':['숏스퀴즈',C.red],'2020-03':['COVID',C.amber]};
+  let evL='';
   Object.entries(evs).forEach(([ym,[l,c]])=>{
-    const idx=pd.findIndex(d=>d.date.startsWith(ym));if(idx<0)return;
-    const x=sx(idx);
-    evLines+=`<line x1="${x}" y1="20" x2="${x}" y2="${H-32}" stroke="${c}" stroke-dasharray="3,3" stroke-width="1" opacity=".7"/>
-      <text x="${x+2}" y="17" fill="${c}" font-size="8">${l}</text>`;
+    const idx=pd.findIndex(p=>p.date.startsWith(ym));if(idx<0)return;
+    evL+=`<line x1="${sx(idx)}" y1="10" x2="${sx(idx)}" y2="${H-22}" stroke="${c}" stroke-dasharray="3,3" stroke-width="1" opacity=".6"/><text x="${sx(idx)+2}" y="9" fill="${c}" font-size="7">${l}</text>`;
   });
-
-  let regBg='';
-  pd.forEach((d,i)=>{
-    if(d.regime>0&&i<pd.length-1){
-      const c=d.regime===2?C.red:C.gold;
-      regBg+=`<line x1="${sx(i)}" y1="20" x2="${sx(i)}" y2="${H-32}" stroke="${c}" stroke-width="${W/pd.length+1}" opacity=".05"/>`;
-    }
-  });
-
-  const lastP=pd[pd.length-1]?.price||0,firstP=pd[0]?.price||0;
-  const chg=((lastP/firstP-1)*100).toFixed(1);
-  const yL=[minP,(minP+maxP)/2,maxP].map(v=>`<text x="8" y="${sy(v)+3}" fill="${C.sub}" font-size="8">$${(v/1000).toFixed(0)}k</text>`).join('');
-
+  let rgB='';
+  pd.forEach((p,i)=>{if(p.regime>0&&i<pd.length-1){const c=p.regime===2?C.red:C.amber;rgB+=`<line x1="${sx(i)}" y1="10" x2="${sx(i)}" y2="${H-22}" stroke="${c}" stroke-width="${W/pd.length+1}" opacity=".04"/>`;} });
+  const svg=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px">
+    <defs><linearGradient id="pg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${C.teal}" stop-opacity=".14"/><stop offset="100%" stop-color="${C.teal}" stop-opacity="0"/></linearGradient></defs>
+    ${rgB}${evL}<polygon points="${area}" fill="url(#pg)"/>
+    <polyline points="${poly}" fill="none" stroke="${C.teal}" stroke-width="1.5"/>
+    <circle cx="${sx(pd.length-1)}" cy="${sy(pr[pr.length-1])}" r="3" fill="${C.teal}"/>
+    <text x="10" y="${H-8}" fill="${C.text4}" font-size="8" font-family="monospace">${pd[0]?.date.slice(0,7)||''}</text>
+    <text x="${W-10}" y="${H-8}" text-anchor="end" fill="${C.text4}" font-size="8" font-family="monospace">${pd[pd.length-1]?.date.slice(0,7)||''}</text>
+  </svg>`;
+  const stH=[['현재가',`$${stats.cur.toLocaleString()}/MT`,C.teal],['일간 변화',(stats.chg1d>=0?'+':'')+stats.chg1d.toFixed(1)+'%',stats.chg1d>=0?C.green:C.red],['월간 변화',(stats.chg1m>=0?'+':'')+stats.chg1m.toFixed(1)+'%',stats.chg1m>=0?C.green:C.red],['52주 최고','$'+stats.hi52.toLocaleString(),C.text3],['52주 최저','$'+stats.lo52.toLocaleString(),C.text3],['연율 변동성',stats.volAnn.toFixed(1)+'%',stats.volAnn>40?C.red:stats.volAnn>25?C.amber:C.green]].map(([l,v,c])=>`<div class="price-stat"><span style="font-size:12px;color:var(--text3)">${l}</span><span style="font-family:'DM Mono',monospace;font-size:13px;font-weight:500;color:${c}">${v}</span></div>`).join('');
+  const news=[{date:'2025-04-28',title:'LME 니켈 재고 3개월 최저치, 공급 우려 확산',tag:'공급',tc:C.red},{date:'2025-04-25',title:'인도네시아 광산 허가 재검토 논의',tag:'정책',tc:C.amber},{date:'2025-04-22',title:'중국 3월 PMI 50.5, 예상 상회',tag:'수요',tc:C.green},{date:'2025-04-18',title:'EV 배터리 수요 Q1 +28% 증가',tag:'수요',tc:C.green}].map(n=>`<div class="news-item"><div class="news-date">${n.date}</div><div class="news-title">${n.title}</div><span class="news-tag" style="background:${n.tc}12;color:${n.tc}">${n.tag}</span></div>`).join('');
   el.innerHTML=`
-  <div class="card fi">
-    <div class="ctitle">LME 니켈 Class 1 · ${fmt(S.fromDate)} ~ ${fmt(S.toDate)}</div>
-    <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px">
-      <defs><linearGradient id="pg" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="${C.accent}" stop-opacity=".22"/>
-        <stop offset="100%" stop-color="${C.accent}" stop-opacity="0"/>
-      </linearGradient></defs>
-      ${regBg}${evLines}
-      <polygon points="${area}" fill="url(#pg)"/>
-      <polyline points="${poly}" fill="none" stroke="${C.accent}" stroke-width="1.5"/>
-      ${yL}
-      <text x="14" y="${H-14}" fill="${C.sub}" font-size="8">${S.fromDate.slice(0,7)}</text>
-      <text x="${W-14}" y="${H-14}" text-anchor="end" fill="${C.sub}" font-size="8">${S.toDate.slice(0,7)}</text>
-    </svg>
-    <div style="display:flex;gap:6px;margin-top:8px">
-      <span style="font-size:9px;padding:2px 7px;background:rgba(255,61,87,.15);color:${C.red};border-radius:3px;font-family:'Space Mono',monospace">● 위기</span>
-      <span style="font-size:9px;padding:2px 7px;background:rgba(240,160,32,.15);color:${C.gold};border-radius:3px;font-family:'Space Mono',monospace">● 고변동</span>
-    </div>
-  </div>
-  <div class="card fi" style="animation-delay:.06s">
-    <div class="ctitle">기간 요약</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <div style="text-align:center"><div style="font-family:'Space Mono',monospace;font-size:16px;font-weight:700;color:${C.accent}">$${lastP.toLocaleString()}</div><div style="font-size:9px;color:var(--sub);margin-top:2px">최종 가격</div></div>
-      <div style="text-align:center"><div style="font-family:'Space Mono',monospace;font-size:16px;font-weight:700;color:${parseFloat(chg)>=0?C.green:C.red}">${parseFloat(chg)>=0?'+':''}${chg}%</div><div style="font-size:9px;color:var(--sub);margin-top:2px">기간 수익률</div></div>
-      <div style="text-align:center"><div style="font-family:'Space Mono',monospace;font-size:16px;font-weight:700;color:var(--text)">${pd.length.toLocaleString()}</div><div style="font-size:9px;color:var(--sub);margin-top:2px">거래일</div></div>
-      <div style="text-align:center"><div style="font-family:'Space Mono',monospace;font-size:16px;font-weight:700;color:${C.gold}">${S.rec.length.toLocaleString()}</div><div style="font-size:9px;color:var(--sub);margin-top:2px">예측 레코드</div></div>
-    </div>
-  </div>
-  <div style="font-size:9px;color:var(--sub);text-align:center;padding:6px">* Yahoo Finance NI=F 기반 시뮬레이션</div>`;
+  <div class="card fi"><div class="card-title">가격 차트</div>${svg}<div style="display:flex;gap:6px;margin-top:6px"><span style="font-size:9px;padding:2px 7px;background:${C.red}10;color:${C.red};border-radius:3px;font-family:'DM Mono',monospace">● 위기</span><span style="font-size:9px;padding:2px 7px;background:${C.amber}10;color:${C.amber};border-radius:3px;font-family:'DM Mono',monospace">● 고변동</span></div></div>
+  <div class="card fi" style="animation-delay:.06s"><div class="card-title">주요 통계</div>${stH}</div>
+  <div class="card fi" style="animation-delay:.1s"><div class="card-title">최근 뉴스 <span style="font-weight:300;font-size:9px;color:var(--text4)">시뮬레이션</span></div>${news}</div>`;
 }
 
-// ── 서비스워커 ───────────────────────────────────────────────────
+// ── 도움말 ───────────────────────────────────────────────────────
+const HELP_CONTENT={
+  predict:{title:'📊 예측 화면',items:[{icon:'📏',title:'예측 바 읽는 법',body:'막대 길이 = 예측가의 상대적 위치\n초록 = 상승 예측 / 빨강 = 하락 예측\n\nD+1: 내일 / D+5: 1주일 후\nD+21: 한 달 후 / D+63: 석 달 후\n\n멀수록 예측이 어려워서 오차가 커요.'},{icon:'📊',title:'MAPE란?',body:'예측가와 실제가의 차이(%)\n\n목표:\nD+1 = 3% 이내\nD+5 = 5% 이내\nD+63 = 15% 이내\n\n이건 업계 기준으로도 꽤 어려운 목표예요.'},{icon:'⚖',title:'게임이론 α',body:'예측값을 보정하는 계수예요.\n+면 상승 조정, -면 하락 조정\n|α| > 0.2면 시장이 불안정한 신호예요.'}]},
+  whatif:{title:'🎲 What-If',items:[{icon:'🎚',title:'슬라이더 사용법',body:'각 슬라이더를 움직이면 가상 시나리오의 예측 가격이 바로 바뀌어요.'},{icon:'🇮🇩',title:'인니 수출 금지',body:'0% = 현 상태 유지\n40% = 강력한 공급 충격\n\n실제 2019년엔 +30% 급등했어요.'},{icon:'🇨🇳',title:'중국 PMI',body:'50 = 평균\n40 = 심각한 수요 붕괴\n55 = 강한 수요 확장'},{icon:'💥',title:'숏 스퀴즈',body:'1%ile = 역대 최고 숏 집중 (스퀴즈 직전)\n50%ile = 정상\n\n2022년 3월 실제로 발생했어요.'}]},
+  strategy:{title:'⚖ 전략',items:[{icon:'♟',title:'게임이론이란?',body:'생산자·트레이더·펀드가 서로 눈치 보며 행동하는 걸 수학으로 모델링한 거예요.\n\nα값이 클수록 게임이론이 예측에 강하게 개입해요.'},{icon:'🛡',title:'보수적',body:'안정적, 변동폭 좁음\n장기 투자자 적합'},{icon:'⚖',title:'균형 (기본)',body:'중간 강도, 일반적 상황에 최적'},{icon:'⚡',title:'적극적',body:'강한 신호 반영, 변동폭 넓음\n단기 트레이더 적합'}]},
+  data:{title:'📰 데이터',items:[{icon:'📈',title:'차트 읽기',body:'빨간 구간 = 위기 레짐 (폭등·폭락 가능)\n노란 구간 = 고변동 레짐\n점선 = 주요 이벤트 발생'},{icon:'📊',title:'변동성',body:'25% 이하 = 안정\n25~40% = 보통\n40% 이상 = 위험 수준'}]},
+};
+
+function showHelp(tab){
+  const h=HELP_CONTENT[tab]||HELP_CONTENT['predict'];
+  const items=h.items.map(it=>`<div class="help-section"><div class="help-sh"><span class="help-icon">${it.icon}</span><span style="font-size:13px;font-weight:600;color:var(--text)">${it.title}</span></div><div class="help-sbody">${it.body}</div></div>`).join('');
+  const ov=document.createElement('div');ov.id='help-overlay';
+  ov.innerHTML=`<div class="help-sheet"><div class="help-handle"></div><div class="help-hdr"><span class="help-title">${h.title}</span><button class="help-x" onclick="closeHelp()">✕</button></div><div class="help-body">${items}</div></div>`;
+  ov.addEventListener('click',e=>{if(e.target===ov)closeHelp();});
+  document.body.appendChild(ov);
+}
+function closeHelp(){const el=document.getElementById('help-overlay');if(el)el.remove();}
+
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});

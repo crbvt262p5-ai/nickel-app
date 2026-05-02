@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
-  <rect width="192" height="192" rx="40" fill="#060810"/>
-  <polygon points="96,32 148,62 148,130 96,160 44,130 44,62" fill="none" stroke="#00c8ff" stroke-width="4" opacity="0.3"/>
-  <polygon points="96,52 132,72 132,120 96,140 60,120 60,72" fill="none" stroke="#00c8ff" stroke-width="2.5" opacity="0.6"/>
-  <polygon points="96,70 118,82 118,110 96,122 74,110 74,82" fill="#00c8ff" opacity="0.15"/>
-  <text x="96" y="104" text-anchor="middle" font-family="monospace" font-weight="700" font-size="26" fill="#00c8ff">Ni</text>
+  <rect width="192" height="192" rx="40" fill="#f0fdfb"/>
+  <polygon points="96,28 152,60 152,132 96,164 40,132 40,60" fill="none" stroke="rgba(13,148,136,0.2)" stroke-width="3"/>
+  <polygon points="96,48 136,72 136,120 96,144 56,120 56,72" fill="none" stroke="rgba(13,148,136,0.4)" stroke-width="2"/>
+  <polygon points="96,66 122,81 122,111 96,126 70,111 70,81" fill="rgba(13,148,136,0.12)"/>
+  <text x="96" y="106" text-anchor="middle" font-family="Georgia,serif" font-weight="700" font-size="28" fill="#0d9488">Ni</text>
 </svg>
